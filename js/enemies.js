@@ -449,7 +449,7 @@ function shotHits(b, e) {
   }
   hurtEnemy(e, d, { crit });
   Sound.play(crit ? 'crit' : 'hit');
-  FX.burst(b.x, b.y, [e.pal.main, '#ffffff'], crit ? 6 : 3, { type: 'spark', min: 60, max: 160 });
+  FX.burst(b.x, b.y, [e.pal.main, '#ffffff'], crit ? 4 : 2, { type: 'spark', min: 60, max: 160 });
   if (b.main || b.splash) applyElements(e, b, d);
   if (b.main && !e.boss) {
     // a small push on every hit, a big one with Giant Shots

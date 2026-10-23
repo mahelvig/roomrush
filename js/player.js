@@ -119,7 +119,7 @@ function updatePlayer(p, dt) {
   updateSkyAttacks(p, dt);
 }
 
-const MAX_SHOTS = 150;
+const MAX_SHOTS = 120;
 
 const elementGlow = s =>
   s.lightning ? ELEMENT_COLORS.lightning : s.curse ? ELEMENT_COLORS.curse : s.frost ? ELEMENT_COLORS.frost

@@ -944,13 +944,11 @@ function drawPlayerShot(ctx, b, t) {
   ctx.scale(s, s);
   switch (b.kind) {
     case 'arrow':
-      if (b.glow) glow(ctx, 0, 0, 16, glowC, 0.8);
-      ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-6, 0);
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+      if (b.glow) glow(ctx, 0, 0, 14, glowC, 0.8);
       oline(ctx, -9, 0, 6, 0, '#f0dcb4', 1.6);
       ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(4, -3.6); ctx.lineTo(4, 3.6); ctx.closePath(); fs(ctx, b.glow ? lighten(glowC, 0.3) : '#e6edf7', 1.3);
       ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(-13, -3.5); ctx.lineTo(-10, 0); ctx.lineTo(-13, 3.5); ctx.closePath();
-      fs(ctx, b.glow || '#ff6b7a', 1);
+      ctx.fillStyle = b.glow || '#ff6b7a'; ctx.fill();
       break;
     case 'orb':
       glow(ctx, 0, 0, 22, b.glow || '#b98bff', 1);

@@ -2,7 +2,7 @@
 // Particles, floating numbers, lightning, shock rings and screen shake.
 
 const FONT = "'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif";
-const MAX_PARTS = 450;
+const MAX_PARTS = 320;
 
 const FX = {
   parts: [], texts: [], bolts: [], rings: [], shake: 0,

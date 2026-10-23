@@ -5,6 +5,8 @@ const app = document.getElementById('app');
 const canvas = document.getElementById('cv');
 const ctx = canvas.getContext('2d');
 let cssW = 360, cssH = 640;
+let dprCap = 3;
+let slowT = 0;
 
 function resize() {
   const W = window.innerWidth, H = window.innerHeight;
@@ -17,7 +19,7 @@ function resize() {
   cssH = H;
   app.style.width = cssW + 'px';
   app.style.left = Math.round((W - cssW) / 2) + 'px';
-  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const dpr = Math.min(dprCap, window.devicePixelRatio || 1);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = cssW + 'px';
@@ -41,6 +43,15 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = (now - last) / 1000;
   last = now;
+  // weak phone: lower the resolution step by step if we stay below ~45 fps while playing
+  if (G.state === 'play' && dt < 0.25) {
+    slowT = dt > 1 / 45 ? slowT + dt : Math.max(0, slowT - dt * 0.5);
+    if (slowT > 2 && dprCap > 1.25 && G.dpr > 1.25) {
+      dprCap = Math.max(1.25, G.dpr - 0.5);
+      slowT = 0;
+      resize();
+    }
+  }
   if (dt > 0.25) dt = 0.25;
   const speed = DEV ? window.RR.speed || 1 : 1;
   acc += dt * speed;
