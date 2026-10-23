@@ -106,7 +106,7 @@ const WORLDS = [
   {
     id: 'crypt', name: 'Frozen Crypt', short: 'Crypt',
     blurb: 'The dead walk on slippery ice. Watch out for spike traps.',
-    hpMult: 3, dmgMult: 2, coinMult: 2.3,
+    hpMult: 2.6, dmgMult: 1.8, coinMult: 2.3,
     enemies: ['skeleton', 'ghost', 'skelArcher', 'frostWisp', 'iceMage', 'yeti'],
     elites: ['boneKnight', 'frostWitch', 'elderYeti'],
     boss: 'lich',
@@ -293,7 +293,7 @@ const BOSSES = {
     shot: 'fire', summon: ['imp', 'magmaSlug'],
   },
   lich: {
-    name: 'The Lich', art: 'lich', hp: 30000, dmg: 135, speed: 24, r: 28, coins: 350, gems: 8,
+    name: 'The Lich', art: 'lich', hp: 26000, dmg: 135, speed: 24, r: 28, coins: 350, gems: 8,
     pal: { main: '#3d3260', dark: '#211a3a', light: '#7ff3ff' },
     moves: ['spiral', 'laser', 'teleport', 'summon', 'ring', 'fan'],
     shot: 'ice', altShot: 'bone', summon: ['skeleton', 'ghost'], flying: true,

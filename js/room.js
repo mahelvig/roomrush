@@ -235,7 +235,7 @@ function moveEntity(e, dx, dy, walker, minY) {
 // Do walls block the straight line between two points? (water does not block shots)
 function lineClear(ax, ay, bx, by, walk) {
   const d = dist(ax, ay, bx, by);
-  const n = Math.ceil(d / 8);
+  const n = Math.ceil(d / 5);
   for (let i = 1; i < n; i++) {
     const t = i / n;
     const tl = tileAt(ax + (bx - ax) * t, ay + (by - ay) * t);
