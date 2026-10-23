@@ -98,9 +98,20 @@ const UPGRADES = [
 const UPGRADE_PRICE = 2;          // everything in the upgrade shop costs this many times the base price
 const upgradeCost = (u, level) => Math.round((u.base * UPGRADE_PRICE * Math.pow(u.growth, level)) / 5) * 5;
 
+// Mastery: once an upgrade is maxed it carries on without a cap, a little per level.
+// Power and Vitality multiply, so 12 Power levels keep up with one difficulty tier (x1.6 HP).
+const MASTERY = [
+  { id: 'atk',   name: 'Power Mastery',     icon: 'sword', desc: L => `x${(1.04 ** L).toFixed(2)} damage` },
+  { id: 'hp',    name: 'Vitality Mastery',  icon: 'heart', desc: L => `x${(1.03 ** L).toFixed(2)} max HP` },
+  { id: 'armor', name: 'Toughness Mastery', icon: 'stone', desc: L => `${Math.round((1 - 0.98 ** L) * 100)}% less damage taken` },
+  { id: 'speed', name: 'Haste Mastery',     icon: 'quick', desc: L => `x${(1.01 ** L).toFixed(2)} attack speed` },
+  { id: 'greed', name: 'Fortune Mastery',   icon: 'coin',  desc: L => `+${L * 3}% gold` },
+];
+const masteryCost = L => Math.round((6000 * 1.055 ** L) / 5) * 5;
+
 const WORLDS = [
   {
-    id: 'woods', name: 'Whispering Woods', short: 'Woods',
+    id: 'woods', name: 'Whispering Woods', short: 'Woods', adj: 'Whispering', noun: 'Woods',
     blurb: 'Slimes, goblins and angry boars hide among the trees.',
     hpMult: 1, dmgMult: 1, coinMult: 1,
     enemies: ['slime', 'bat', 'sporecap', 'goblin', 'boar', 'stumpy'],
@@ -116,7 +127,7 @@ const WORLDS = [
     },
   },
   {
-    id: 'caverns', name: 'Ember Caverns', short: 'Caverns',
+    id: 'caverns', name: 'Ember Caverns', short: 'Caverns', adj: 'Burning', noun: 'Caverns',
     blurb: 'Lava flows between the rocks. Do not stand in it.',
     hpMult: 1.8, dmgMult: 1.45, coinMult: 1.6,
     enemies: ['imp', 'magmaSlug', 'fireBat', 'scorpion', 'salamander', 'golem'],
@@ -132,7 +143,7 @@ const WORLDS = [
     },
   },
   {
-    id: 'crypt', name: 'Frozen Crypt', short: 'Crypt',
+    id: 'crypt', name: 'Frozen Crypt', short: 'Crypt', adj: 'Frozen', noun: 'Crypt',
     blurb: 'The dead walk on slippery ice. Watch out for spike traps.',
     hpMult: 2.6, dmgMult: 1.8, coinMult: 2.3,
     enemies: ['skeleton', 'ghost', 'skelArcher', 'frostWisp', 'iceMage', 'yeti'],

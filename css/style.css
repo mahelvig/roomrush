@@ -401,6 +401,23 @@ header h2 { flex: 1; font-size: 1.7em; }
 .world-card .lock svg { width: 2.2em; height: 2.2em; }
 .world-card:active:not(:disabled) { transform: translateY(.15em); }
 
+.world-card.depths { background: linear-gradient(#3b2370, #24154a); }
+
+/* tabs on the upgrade screen */
+.tabs { display: flex; gap: .5em; }
+.tab {
+  flex: 1;
+  font-family: var(--title);
+  font-size: 1.05em;
+  padding: .4em;
+  border-radius: .8em;
+  border: .16em solid var(--line);
+  background: rgba(20, 12, 40, .6);
+  color: var(--muted);
+}
+.tab.on { background: linear-gradient(#c38eff, #7a4fe0); color: #fff; box-shadow: 0 .2em 0 var(--line); }
+.upg.dim { opacity: .55; }
+
 /* difficulty picker under a world card */
 .tier-row { display: flex; align-items: center; gap: .5em; padding: .45em .55em; margin-top: -.35em; }
 .tier-info { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }

@@ -120,7 +120,7 @@ function devKey(code) {
   if (G.state !== 'play') return;
   if (code === 'KeyK') for (const e of G.enemies) if (!e.boss) killEnemy(e); else hurtEnemy(e, e.maxHp * 0.25);
   if (code === 'KeyN') { for (const e of G.enemies) e.dead = true; G.enemies = []; }
-  if (code === 'KeyB') { G.roomIdx = ROOMS_PER_WORLD - 1; nextRoom(); }
+  if (code === 'KeyB') { G.roomIdx = roomsIn(G.world) - 1; nextRoom(); }
   if (code === 'KeyH') healPlayer(G.player.s.maxHp);
   if (code === 'KeyG') { save.gold += 1000; save.gems += 20; writeSave(); }
   if (code === 'KeyI') G.player.invuln = 9999;

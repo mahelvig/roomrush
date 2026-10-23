@@ -11,16 +11,20 @@ const G = {
 
 // ---------- run flow ----------
 
-function startRun(worldIdx, resume, tier = 0) {
+// depth > 0 starts a run in The Depths (depths.js) at that depth instead of a world.
+function startRun(worldIdx, resume, tier = 0, depth = 0) {
   const hero = HERO_BY_ID[resume ? resume.hero : save.hero] || HEROES[0];
-  G.worldIdx = worldIdx;
-  G.world = WORLDS[worldIdx];
-  G.tier = resume ? resume.tier || 0 : tier;
+  depth = resume ? resume.depth || 0 : depth;
+  G.worldIdx = depth ? WORLDS.length - 1 : worldIdx;
+  G.world = depth ? depthWorld(depth) : WORLDS[worldIdx];
+  G.tier = depth || (resume ? resume.tier || 0 : tier);
   G.run = resume || {
-    world: worldIdx, tier, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
+    world: worldIdx, tier: G.tier, depth, startDepth: depth, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
     livesUsed: 0, metaRevive: upgradeLevel('revive') > 0, rerolls: upgradeLevel('reroll'),
-    startPicks: upgradeLevel('start'), hp: null,
+    // starting deeper than depth 1 you start without perks, but with three free picks
+    startPicks: upgradeLevel('start') + (depth > 1 ? 3 : 0), hp: null,
   };
+  if (depth) { save.depthBest = Math.max(save.depthBest || 0, depth); }
   G.player = createPlayer(hero, G.run.perks);
   G.player.livesUsed = G.run.livesUsed || 0;
   G.helpers = [];
@@ -33,8 +37,12 @@ function startRun(worldIdx, resume, tier = 0) {
   enterRoom(G.run.room);
 }
 
+const roomsIn = w => w.rooms || ROOMS_PER_WORLD;
+// How far into a world the room is for difficulty: the 10 rooms of a depth ramp up like 20.
+const roomLevel = () => (G.world.depth ? G.roomIdx * 2 : G.roomIdx);
+
 function roomTypeOf(idx) {
-  return idx === ROOMS_PER_WORLD ? 'boss' : idx % 5 === 0 ? 'elite' : 'normal';
+  return idx === roomsIn(G.world) ? 'boss' : idx % 5 === 0 ? 'elite' : 'normal';
 }
 
 function enterRoom(idx) {
@@ -60,7 +68,7 @@ function enterRoom(idx) {
   G.run.hp = p.hp;
   G.run.perks = p.perks;
   writeRun(G.run);
-  if (idx > (save.best[w.id] || 0)) { save.best[w.id] = idx; writeSave(); }
+  if (!w.depth && idx > (save.best[w.id] || 0)) { save.best[w.id] = idx; writeSave(); }
   UI.updateHud();
   UI.bossBar(null);
   Sound.playMusic(G.roomType === 'boss' ? 'boss' : w.music);
@@ -78,12 +86,15 @@ function beginRoom() {
   spawnRoomEnemies();
   const w = G.world;
   if (G.roomType === 'boss') {
-    UI.banner('BOSS', BOSSES[w.boss].name, 'boss');
-    UI.bossBar(BOSSES[w.boss].name);
+    const name = BOSSES[w.boss].name + (w.bossAffix ? ` · ${AFFIXES[w.bossAffix].name}` : '');
+    UI.banner('BOSS', name, 'boss');
+    UI.bossBar(name);
     Sound.play('boss');
     FX.kick(6);
   } else if (G.roomType === 'elite') {
     UI.banner('Elite Room', ENEMIES[G.enemies[0].type].name, 'elite');
+  } else if (w.depth && G.roomIdx === 1) {
+    UI.banner(`Depth ${w.depth}`, `${w.name} · ${w.mod.name}`, '');
   } else {
     UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name + (G.tier ? ` · ${tierName(G.tier)}` : '') : '', '');
   }
@@ -97,15 +108,20 @@ function beginRoom() {
 }
 
 function spawnRoomEnemies() {
-  const w = G.world, idx = G.roomIdx, p = G.player;
+  const w = G.world, idx = roomLevel(), p = G.player;
   if (G.roomType === 'boss') { spawnBoss(w.boss); return; }
   const types = enemyPool(w, idx);
   let budget = DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4;
   let n = 0;
   if (G.roomType === 'elite') {
-    const key = w.elites[clamp(idx / 5 - 1, 0, w.elites.length - 1)];
+    const key = w.depth ? pick(w.elites) : w.elites[clamp(idx / 5 - 1, 0, w.elites.length - 1)];
     spawnEnemy(key, DOOR_X, ROOM_Y + 120, { spawnT: 0.9 });
     budget = 1.2 + idx * 0.1;
+  } else if (worldMod('swarm')) {
+    const key = pick(w.elites);
+    const spot = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 220, maxRow: ROWS - 6, fit: ENEMIES[key].r });
+    spawnEnemy(key, spot.x, spot.y, { spawnT: 0.9 }).noGems = true;   // gold, but no gems: no gem farm
+    budget *= 0.7;
   }
   while (budget > 0.4 && n < DIFFICULTY.maxEnemies) {
     const type = pick(types), def = ENEMIES[type];
@@ -191,7 +207,8 @@ function nextRoom() {
   Sound.play('door');
   fadeTo(() => {
     G.run.hp = G.player.hp;
-    enterRoom(G.roomIdx + 1);
+    if (G.world.depth && G.roomIdx >= roomsIn(G.world)) nextDepth();
+    else enterRoom(G.roomIdx + 1);
   });
 }
 
@@ -215,7 +232,7 @@ function endRun(won) {
   clearRun();
   writeSave();
   return {
-    world: G.world, tier: G.tier, room: G.roomIdx, gold: run.gold, gems: run.gems, kills: run.kills || 0,
+    world: G.world, tier: G.tier, depth: G.world.depth || 0, room: G.roomIdx, gold: run.gold, gems: run.gems, kills: run.kills || 0,
     time: run.time, perks: Object.assign({}, G.player.perks), hero: G.player.hero,
   };
 }
@@ -300,6 +317,7 @@ function updateGame(dt) {
   updatePlayer(p, dt);
   if (G.state !== 'play') return;
   updateAbilities(dt, p);
+  if (worldMod('meteors') && !G.cleared && !G.bossDead) updateMeteorRain(dt, p);
   updateHelpers(p, dt);
   for (const e of G.enemies) updateEnemy(e, dt, p);
   separateEnemies();
@@ -315,7 +333,16 @@ function updateGame(dt) {
   if (G.boss && !G.bossDead) UI.bossHp(G.boss.hp / G.boss.maxHp, G.boss.shielded);
   if (G.state !== 'play') return;
 
-  if (G.roomType === 'boss') {
+  if (G.roomType === 'boss' && G.world.depth) {
+    // a depth boss: when it is down the room counts as cleared and the run goes on
+    if (G.bossDead && !G.cleared) {
+      G.bossDeadT += dt;
+      if (G.bossDeadT > 2.2) depthCleared();
+    } else if (G.cleared && !G.perkShown) {
+      G.clearT += dt;
+      if (G.clearT > 1.8 || (G.clearT > 0.8 && G.pickups.length === 0)) showPerkChoice('room');
+    }
+  } else if (G.roomType === 'boss') {
     if (G.bossDead) {
       G.bossDeadT += dt;
       if (G.bossDeadT > 0.5) G.cleared = true;
@@ -666,6 +693,7 @@ function drawGame(ctx) {
   for (const b of G.eshots) drawEnemyShot(ctx, b, t);
   for (const s of G.strikes) if (s.kind === 'meteor' && s.t < 0.55) drawMeteor(ctx, s, t);
   FX.draw(ctx);
+  if (worldMod('dark') && !p.dead) drawDarkness(ctx, p);
 
   // health bars
   for (const e of G.enemies) {

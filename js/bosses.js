@@ -7,14 +7,20 @@ function spawnBoss(key) {
   const def = Object.assign({ ai: 'boss' }, BOSSES[key]);
   const e = spawnEnemy('slime', DOOR_X, ROOM_Y + 150, { spawnT: 1.2 });
   const hp = Math.round(def.hp * TIER.hp ** G.tier);
-  const firstOnTier = G.tier > (save.tiers[G.world.id] ?? -1);
+  const firstOnTier = !G.world.depth && G.tier > (save.tiers[G.world.id] ?? -1);
   Object.assign(e, {
     def, type: key, r: def.r, pal: def.pal, hp, maxHp: hp, dmg: Math.round(def.dmg * TIER.dmg ** G.tier), speed: def.speed,
     state: 'intro', t: 1.4, boss: true, flying: !!def.flying, lastMove: null, phase2: false, phase3: false, m: null,
     phaseIdx: 0, shielded: false, crystals: [], fightT: 0, fury: 0, sinceSig: 0,
-    gems: def.gems * (firstOnTier ? 2 : 1) + G.tier,
+    // in The Depths the gems come from the milestones every fifth depth instead
+    gems: G.world.depth ? def.gems : def.gems * (firstOnTier ? 2 : 1) + Math.min(5, G.tier),
   });
   e.spawnMax = 1.2;
+  if (G.world.bossAffix) {   // bosses in The Depths bring an affix along
+    e.aff[G.world.bossAffix] = true;
+    e.affList.push(G.world.bossAffix);
+    addAffixes(e, 0);
+  }
   G.boss = e;
   return e;
 }

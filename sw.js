@@ -1,9 +1,9 @@
 // Offline support: always try the network first (so updates show up), fall back to the cache.
-const CACHE = 'roomrush-v4';
+const CACHE = 'roomrush-v5';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/util.js', 'js/config.js', 'js/save.js', 'js/audio.js', 'js/input.js', 'js/room.js', 'js/art.js',
-  'js/scenery.js', 'js/effects.js', 'js/perks.js', 'js/player.js', 'js/enemies.js', 'js/affixes.js', 'js/abilities.js', 'js/bosses.js',
+  'js/scenery.js', 'js/effects.js', 'js/perks.js', 'js/player.js', 'js/enemies.js', 'js/affixes.js', 'js/abilities.js', 'js/depths.js', 'js/bosses.js',
   'js/game.js', 'js/ui.js', 'js/main.js', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

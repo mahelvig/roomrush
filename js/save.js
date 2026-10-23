@@ -18,6 +18,10 @@ function defaultSave() {
     tiers: {},             // world id -> highest difficulty tier cleared (see TIER in config.js)
     tierPick: {},          // world id -> tier picked last time on the world screen
     abilities: {},         // hero id -> ability upgrades bought (0..ABILITY_COSTS.length)
+    mastery: {},           // upgrade id -> mastery levels bought (no cap)
+    depthBest: 0,          // deepest depth reached in The Depths
+    depthCleared: 0,       // deepest depth cleared (for the gem bonus every fifth depth)
+    depthPick: 0,          // depth picked on the world screen (0 = the deepest start)
     seenAbilityHint: false,
     settings: { sfx: true, music: true, vibrate: true },
     stats: { runs: 0, kills: 0, bosses: 0, deaths: 0 },
@@ -50,6 +54,7 @@ function writeSave() {
 }
 
 const upgradeLevel = id => save.upgrades[id] || 0;
+const masteryLevel = id => save.mastery[id] || 0;
 // Highest tier the player may pick for a world: one above the best tier cleared.
 const tierUnlocked = w => (save.tiers[w.id] ?? -1) + 1;
 

@@ -104,24 +104,24 @@ const perkDesc = (k, L) => (typeof k.desc === 'function' ? k.desc(Math.max(1, L)
 // Base stats from the hero plus permanent upgrades.
 function baseStats(hero) {
   return {
-    maxHp: hero.hp + upgradeLevel('hp') * 40,
+    maxHp: (hero.hp + upgradeLevel('hp') * 40) * 1.03 ** masteryLevel('hp'),
     hpPct: 0,
     atk: hero.atk,
     atkPct: upgradeLevel('atk') * 0.05,
-    dmgMul: 1,
+    dmgMul: 1.04 ** masteryLevel('atk'),
     interval: hero.interval,
-    rate: 1 + upgradeLevel('speed') * 0.03,
+    rate: (1 + upgradeLevel('speed') * 0.03) * 1.01 ** masteryLevel('speed'),
     moveRate: 0.6,            // fire rate while moving (hybrid controls)
     speed: hero.speed,
     crit: hero.crit + upgradeLevel('crit') * 0.02,
     critMul: 2,
-    armor: upgradeLevel('armor') * 0.02,
+    armor: 1 - (1 - upgradeLevel('armor') * 0.02) * 0.98 ** masteryLevel('armor'),
     dodge: 0,
     front: 0, multishot: 0, diag: 0, side: 0, rear: 0, pierce: 0, wallBounce: 0, ricochet: 0,
     burn: 0, poison: 0, frost: 0, lightning: 0, curse: 0,
     vamp: 0, shield: 0, wisps: 0, blades: 0, guards: 0, dragons: 0, drones: hero.drone || 0,
     meteor: 0, storm: 0, size: 1, knock: 0, rage: 0, headshot: 0,
-    lives: 0, gold: upgradeLevel('greed') * 0.1, roomHeal: upgradeLevel('recover') * 0.03,
+    lives: 0, gold: upgradeLevel('greed') * 0.1 + masteryLevel('greed') * 0.03, roomHeal: upgradeLevel('recover') * 0.03,
     bulletSlow: 1, homing: hero.homing || 0,
   };
 }

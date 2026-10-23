@@ -2,12 +2,13 @@
 // Enemies: spawning, behaviours, status effects (burn, poison, frost, curse) and damage.
 
 function roomScale() {
-  const i = G.roomIdx - 1;
+  const i = roomLevel() - 1;
   return { hp: (1 + DIFFICULTY.roomHp * i) * TIER.hp ** G.tier, dmg: (1 + DIFFICULTY.roomDmg * i) * TIER.dmg ** G.tier };
 }
 
 // The kinds of enemy that can turn up in a room: more of the world's list the further in you are.
 function enemyPool(world, idx) {
+  if (world.depth) return world.enemies;
   return world.enemies.slice(0, Math.min(world.enemies.length, 2 + Math.floor((idx - 1) / 3)));
 }
 
@@ -34,7 +35,7 @@ function spawnEnemy(type, x, y, o = {}) {
 
 function enemyShot(e, ang, shotKey, speed, dmgMul = 1, o = {}) {
   const sd = SHOTS[shotKey] || SHOTS.orb;
-  const sp = speed * G.player.s.bulletSlow * (1 + DIFFICULTY.roomShotSpeed * (G.roomIdx - 1));
+  const sp = speed * G.player.s.bulletSlow * (1 + DIFFICULTY.roomShotSpeed * (roomLevel() - 1)) * (worldMod('swift') ? 1.3 : 1);
   G.eshots.push({
     x: e.x + Math.cos(ang) * (e.r * 0.6), y: e.y - (e.z || 0) + Math.sin(ang) * (e.r * 0.6),
     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: sd.r, kind: sd.kind, color: sd.color,
@@ -452,7 +453,7 @@ function updateEnemy(e, dt, p) {
     if (Math.abs(e.kbx) + Math.abs(e.kby) < 5) e.kbx = e.kby = 0;
   }
 
-  if (e.boss) updateBoss(e, dt, p);
+  if (e.boss) updateBoss(e, dt * e.haste, p);
   else AI[e.def.ai](e, dt * e.haste * (e.state === 'dash' || e.state === 'air' ? 1 : e.slowK === 1 ? 1 : 0.8), p);
   if (e.affList.length) updateAffixes(e, dt, p);
   if (!e.flying && !e.boss) resolveTiles(e, true);
@@ -568,7 +569,7 @@ function killEnemy(e) {
     dropCoins(e.x, e.y, coins);
     if (e.elite) {
       dropPickup('heart', e.x, e.y, 0.3);
-      dropPickup('gem', e.x, e.y, 1 + G.worldIdx + Math.floor(G.tier / 2));
+      if (!e.noGems) dropPickup('gem', e.x, e.y, 1 + G.worldIdx + Math.min(3, Math.floor(G.tier / 2)));
     } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
     if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
   }

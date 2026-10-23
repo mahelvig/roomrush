@@ -30,7 +30,7 @@ function addAffixes(e, n) {
     e.aff[id] = true;
     e.affList.push(id);
   }
-  if (e.aff.fast) e.haste = 1.4;
+  if (e.aff.fast) e.haste = e.boss ? 1.2 : 1.4;
   if (e.aff.shielded) e.shieldAng = e.look;
   if (e.aff.chained) e.links = [];
 }

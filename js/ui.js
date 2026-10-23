@@ -84,6 +84,7 @@ const UI = {
       ctx.lineJoin = 'round';
       if (pv.kind === 'hero') drawHeroPreview(ctx, w, h, t, HERO_BY_ID[pv.data.hero]);
       else if (pv.kind === 'world') drawWorldPreview(ctx, w, h, t, +pv.data.w);
+      else if (pv.kind === 'depths') drawDepthsPreview(ctx, w, h, t);
     }
   },
 
@@ -121,9 +122,10 @@ const UI = {
   updateHud() {
     if (!G.run) return;
     const w = G.world;
-    this.hudEl.querySelector('.hud-world').textContent = `${G.tier ? `${w.short} · ${tierName(G.tier)}` : w.name} · ${G.roomIdx}/${ROOMS_PER_WORLD}`;
+    const where = w.depth ? `Depth ${w.depth} · ${w.name}` : G.tier ? `${w.short} · ${tierName(G.tier)}` : w.name;
+    this.hudEl.querySelector('.hud-world').textContent = `${where} · ${G.roomIdx}/${roomsIn(w)}`;
     let dots = '';
-    for (let i = 1; i <= ROOMS_PER_WORLD; i++) {
+    for (let i = 1; i <= roomsIn(w); i++) {
       const type = roomTypeOf(i);
       const cls = [type, i < G.roomIdx ? 'done' : '', i === G.roomIdx ? 'now' : ''].join(' ');
       dots += `<i class="${cls}"></i>`;
@@ -169,9 +171,11 @@ const UI = {
     Sound.playMusic('menu');
     const hero = HERO_BY_ID[save.hero];
     const run = loadRun();
-    const cont = run && WORLDS[run.world] ? `
+    const runWhere = run && (run.depth ? `Depth ${run.depth} · ${depthWorld(run.depth).name} · Room ${run.room}/${DEPTH_ROOMS}`
+      : WORLDS[run.world] && `${WORLDS[run.world].name}${run.tier ? ` · ${tierName(run.tier)}` : ''} · Room ${run.room}/${ROOMS_PER_WORLD}`);
+    const cont = runWhere ? `
       <div class="continue panel pop">
-        <div><b>Run in progress</b><span>${WORLDS[run.world].name}${run.tier ? ` · ${tierName(run.tier)}` : ''} · Room ${run.room}/${ROOMS_PER_WORLD}</span></div>
+        <div><b>Run in progress</b><span>${runWhere}</span></div>
         <button class="btn green" data-a="continue">Continue</button>
         <button class="icon-btn" data-a="abandon" aria-label="Give up run">${SVG.x}</button>
       </div>` : '';
@@ -216,10 +220,40 @@ const UI = {
         </button>
         ${!locked && tierUnlocked(w) > 0 ? this.tierRow(i) : ''}`;
     }).join('');
+    const open = depthsUnlocked();
+    const depths = `
+      <button class="world-card depths ${open ? '' : 'locked'}" data-a="startDepth" ${open ? '' : 'disabled'}>
+        <canvas data-preview="depths"></canvas>
+        <div class="info">
+          <b>The Depths</b>
+          <span>Endless worlds, each harder than the last. How deep can you go?</span>
+          <span class="best">${save.depthBest ? `Deepest: depth ${save.depthBest}` : 'Not played yet'}</span>
+        </div>
+        ${open ? '' : `<div class="lock">${SVG.lock}<span>Beat ${WORLDS[WORLDS.length - 1].name}</span></div>`}
+      </button>
+      ${open && depthStarts().length > 1 ? this.depthRow() : ''}`;
     this.open(`
       <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Choose a world</h2></header>
-      <div class="list">${cards}</div>
+      <div class="list">${cards}${depths}</div>
     `, 'worlds');
+  },
+
+  // Where to start in The Depths: depth 1 or a checkpoint every fifth depth.
+  depthRow() {
+    const starts = depthStarts(), d = this.pickedDepth(), i = starts.indexOf(d);
+    return `
+      <div class="tier-row panel" data-depth="1">
+        <button class="round small" data-a="depthPick" data-d="-1" ${i <= 0 ? 'disabled' : ''} aria-label="Shallower">${SVG.back}</button>
+        <div class="tier-info">
+          <b class="t4">Start at depth ${d}</b>
+          <span>${d > 1 ? 'No perks to start with, but 3 free picks' : 'From the top'}</span>
+        </div>
+        <button class="round small flip" data-a="depthPick" data-d="1" ${i >= starts.length - 1 ? 'disabled' : ''} aria-label="Deeper">${SVG.back}</button>
+      </div>`;
+  },
+  pickedDepth() {
+    const starts = depthStarts();
+    return starts.includes(save.depthPick) ? save.depthPick : starts[starts.length - 1];
   },
 
   // The hero's active ability on its card, with the gem upgrade.
@@ -282,7 +316,9 @@ const UI = {
     `, 'heroes');
   },
 
-  upgrades() {
+  upgrades(tab = this.upgradeTab || 'upgrades') {
+    this.upgradeTab = tab;
+    if (tab === 'mastery') return this.mastery();
     const rows = UPGRADES.map(u => {
       const L = upgradeLevel(u.id);
       const maxed = L >= u.max;
@@ -299,7 +335,39 @@ const UI = {
     }).join('');
     this.open(`
       <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Upgrades</h2><div class="pill">${coinTag(save.gold)}</div></header>
+      ${this.upgradeTabs('upgrades')}
       <p class="sub">Permanent bonuses for every run.</p>
+      <div class="list">${rows}</div>
+    `, 'upgrades');
+  },
+
+  upgradeTabs(on) {
+    return `<div class="tabs">
+      <button class="tab ${on === 'upgrades' ? 'on' : ''}" data-a="upgradeTab" data-tab="upgrades">Upgrades</button>
+      <button class="tab ${on === 'mastery' ? 'on' : ''}" data-a="upgradeTab" data-tab="mastery">Mastery</button>
+    </div>`;
+  },
+
+  // Mastery: the five upgrades that go on without a cap once maxed.
+  mastery() {
+    const rows = MASTERY.map(m => {
+      const u = UPGRADES.find(x => x.id === m.id);
+      const open = upgradeLevel(u.id) >= u.max;
+      const L = masteryLevel(m.id), cost = masteryCost(L);
+      return `
+        <div class="upg panel ${open ? '' : 'dim'}">
+          <canvas class="icon" data-icon="${m.icon}"></canvas>
+          <div class="u-info">
+            <b>${m.name} <span class="lv">${L}</span></b>
+            <span>${open ? `${L ? m.desc(L) : 'Not bought yet'} <em>→ ${m.desc(L + 1)}</em>` : `Max ${u.name} first (${upgradeLevel(u.id)}/${u.max})`}</span>
+          </div>
+          ${open ? `<button class="btn small gold" data-a="buyMastery" data-id="${m.id}" ${save.gold < cost ? 'disabled' : ''}>${coinTag(cost)}</button>` : ''}
+        </div>`;
+    }).join('');
+    this.open(`
+      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Upgrades</h2><div class="pill">${coinTag(save.gold)}</div></header>
+      ${this.upgradeTabs('mastery')}
+      <p class="sub">No limit: keeps growing as long as you keep buying.</p>
       <div class="list">${rows}</div>
     `, 'upgrades');
   },
@@ -330,7 +398,8 @@ const UI = {
 
   perks(choices, reason) {
     const p = G.player;
-    const title = reason === 'start' ? 'Head start!' : G.roomType === 'elite' ? 'Elite defeated!' : `Room ${G.roomIdx} cleared!`;
+    const title = reason === 'start' ? 'Head start!' : G.roomType === 'elite' ? 'Elite defeated!'
+      : G.roomType === 'boss' && G.world.depth ? `Depth ${G.world.depth} cleared! Next: depth ${G.world.depth + 1}` : `Room ${G.roomIdx} cleared!`;
     const cards = choices.map((k, i) => {
       const L = p.perks[k.id] || 0;
       const R = RARITY[k.rarity];
@@ -364,7 +433,7 @@ const UI = {
         <h2>Paused</h2>
         <div class="facts">
           <span><b>${G.world.short}</b>World</span>
-          <span><b>${G.roomIdx}/${ROOMS_PER_WORLD}</b>Room</span>
+          <span><b>${G.roomIdx}/${roomsIn(G.world)}</b>Room</span>
           <span><b>${fmt(run.gold)}</b>Gold</span>
           <span><b>${run.kills || 0}</b>Kills</span>
         </div>
@@ -387,7 +456,8 @@ const UI = {
     this.open(`
       <div class="panel result lose">
         <h2>Defeated</h2>
-        <p class="sub">${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''} · reached room ${sum.room}/${ROOMS_PER_WORLD}</p>
+        <p class="sub">${sum.depth ? `Depth ${sum.depth} · ${sum.world.name} · room ${sum.room}/${DEPTH_ROOMS} · deepest ever: ${save.depthBest}`
+          : `${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''} · reached room ${sum.room}/${ROOMS_PER_WORLD}`}</p>
         <div class="facts">
           <span><b>${coinTag(sum.gold)}</b>Gold</span>
           <span><b>${gemTag(sum.gems)}</b>Gems</span>
@@ -447,7 +517,31 @@ const ACTIONS = {
     goFullscreen();
     startRun(+d.w, null, pickedTier(w));
   },
-  again: () => { goFullscreen(); startRun(G.worldIdx, null, G.tier); },
+  again: () => {
+    goFullscreen();
+    if (G.run && G.run.startDepth) startRun(0, null, 0, G.run.startDepth);
+    else startRun(G.worldIdx, null, G.tier);
+  },
+  startDepth: () => { goFullscreen(); startRun(0, null, 0, UI.pickedDepth()); },
+  depthPick: d => {
+    const starts = depthStarts();
+    save.depthPick = starts[clamp(starts.indexOf(UI.pickedDepth()) + +d.d, 0, starts.length - 1)];
+    writeSave();
+    const row = UI.root.querySelector('.tier-row[data-depth]');
+    if (row) row.outerHTML = UI.depthRow();
+  },
+  upgradeTab: d => UI.upgrades(d.tab),
+  buyMastery: d => {
+    const L = masteryLevel(d.id), cost = masteryCost(L);
+    if (save.gold < cost) return;
+    save.gold -= cost;
+    save.mastery[d.id] = L + 1;
+    writeSave();
+    Sound.play('coin');
+    const y = UI.root.scrollTop;
+    UI.upgrades('mastery');
+    UI.root.scrollTop = y;
+  },
   tier: d => {
     const w = WORLDS[+d.w];
     save.tierPick[w.id] = clamp(pickedTier(w) + +d.d, 0, tierUnlocked(w));
@@ -572,6 +666,42 @@ function drawHeroPreview(ctx, w, h, t, hero) {
   drawShadow(ctx, 0, 9, 11);
   const aim = -Math.PI / 2 + Math.sin(t * 0.8) * 1.4;
   drawHero(ctx, hero, { aim, walk: t * 4, moving: false, recoil: Math.max(0, Math.sin(t * 3)) * 0.5, t, ready: Math.sin(t * 3) < 0 });
+  ctx.restore();
+}
+
+// The Depths card: the three worlds' floors sinking into the dark round a swirling portal.
+function drawDepthsPreview(ctx, w, h, t) {
+  const band = w / WORLDS.length;
+  WORLDS.forEach((world, i) => {
+    ctx.fillStyle = world.theme.floorA;
+    ctx.fillRect(i * band, 0, band + 1, h);
+  });
+  const g = ctx.createRadialGradient(w / 2, h * 0.55, 6, w / 2, h * 0.55, w * 0.55);
+  g.addColorStop(0, 'rgba(20,8,40,0.95)');
+  g.addColorStop(0.45, 'rgba(30,12,60,0.85)');
+  g.addColorStop(1, 'rgba(10,6,24,0.35)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(w / 2, h * 0.55);
+  for (let i = 0; i < 5; i++) {
+    ctx.save();
+    ctx.rotate(t * (0.6 + i * 0.25) + i);
+    ctx.scale(1, 0.42);
+    ctx.beginPath(); ctx.arc(0, 0, 14 + i * 9, 0.3, Math.PI * 1.4);
+    ctx.strokeStyle = `rgba(192,107,255,${0.85 - i * 0.14})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+  }
+  glow(ctx, 0, 0, 40, '#c06bff', 0.8);
+  ctx.restore();
+  const k = h / 80;
+  ctx.save();
+  ctx.scale(k, k);
+  const W = w / k;
+  const foes = [fakeEnemy(WORLDS[0].enemies[0], W * 0.18, 56), fakeEnemy(WORLDS[1].enemies[0], W * 0.5, 22), fakeEnemy(WORLDS[2].enemies[0], W * 0.82, 56)];
+  for (const e of foes) { drawShadow(ctx, e.x, e.y + e.r * 0.8, e.r); drawEnemy(ctx, e, t); }
   ctx.restore();
 }
 
