@@ -270,7 +270,7 @@ const UI = {
           <span class="rar">${R.name}</span>
           <canvas class="icon" data-icon="${k.icon}"></canvas>
           <b>${k.name}</b>
-          <p>${k.desc}</p>
+          <p>${perkDesc(k, L + 1)}</p>
           ${lv}
         </button>`;
     }).join('');
@@ -301,7 +301,7 @@ const UI = {
         <h3>Your perks</h3>
         ${owned.length ? `<div class="perk-list">${owned.map(id => {
           const k = PERK_BY_ID[id];
-          return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${p.perks[id] > 1 ? ` ×${p.perks[id]}` : ''}</b>${k.desc}</span></div>`;
+          return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${p.perks[id] > 1 ? ` ×${p.perks[id]}` : ''}</b>${perkDesc(k, p.perks[id])}</span></div>`;
         }).join('')}</div>` : '<p class="sub">No perks yet. Clear a room to get one.</p>'}
         <div class="row toggles">
           <button class="toggle ${s.sfx ? 'on' : ''}" data-a="toggle" data-key="sfx" data-stay="1"><span>Sound</span><i></i></button>

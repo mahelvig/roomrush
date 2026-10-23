@@ -68,7 +68,8 @@ const UPGRADES = [
   { id: 'start',   name: 'Head Start',      icon: 'gift',    max: 2,  base: 400,  growth: 2.5,  desc: l => `Pick ${l} perk${l === 1 ? '' : 's'} before room 1` },
   { id: 'revive',  name: 'Second Chance',   icon: 'ankh',    max: 1,  base: 1500, growth: 1,    desc: () => 'Come back to life once per run' },
 ];
-const upgradeCost = (u, level) => Math.round((u.base * Math.pow(u.growth, level)) / 5) * 5;
+const UPGRADE_PRICE = 2;          // everything in the upgrade shop costs this many times the base price
+const upgradeCost = (u, level) => Math.round((u.base * UPGRADE_PRICE * Math.pow(u.growth, level)) / 5) * 5;
 
 const WORLDS = [
   {
@@ -152,7 +153,7 @@ const ENEMIES = {
   sporecap: {
     name: 'Sporecap', art: 'mushroom', ai: 'turret', hp: 95, dmg: 50, speed: 0, r: 13, cost: 1.2, coins: 2,
     pal: { main: '#e2483f', dark: '#a3302b', light: '#ffe9d2' },
-    fire: { every: 2.4, shots: 3, spread: 0.32, speed: 115, shot: 'spore' },
+    fire: { every: 2.4, shots: 3, spread: 0.32, speed: 115, shot: 'spore', over: true },   // spores fly over scenery
   },
   goblin: {
     name: 'Goblin Archer', art: 'goblin', ai: 'archer', hp: 85, dmg: 60, speed: 68, r: 12, cost: 1.4, coins: 3,

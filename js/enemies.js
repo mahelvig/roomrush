@@ -6,6 +6,11 @@ function roomScale() {
   return { hp: 1 + DIFFICULTY.roomHp * i, dmg: 1 + DIFFICULTY.roomDmg * i };
 }
 
+// The kinds of enemy that can turn up in a room: more of the world's list the further in you are.
+function enemyPool(world, idx) {
+  return world.enemies.slice(0, Math.min(world.enemies.length, 2 + Math.floor((idx - 1) / 3)));
+}
+
 function spawnEnemy(type, x, y, o = {}) {
   const def = ENEMIES[type];
   const w = G.world, k = roomScale();
@@ -36,10 +41,10 @@ function enemyShot(e, ang, shotKey, speed, dmgMul = 1, o = {}) {
     accel: o.accel || 0, ghost: !!o.ghost,
   });
 }
-function spreadShot(e, ang, n, spread, shotKey, speed, dmgMul) {
+function spreadShot(e, ang, n, spread, shotKey, speed, dmgMul, o) {
   for (let i = 0; i < n; i++) {
     const a = n === 1 ? ang : ang - spread / 2 + (spread * i) / (n - 1);
-    enemyShot(e, a, shotKey, speed, dmgMul);
+    enemyShot(e, a, shotKey, speed, dmgMul, o);
   }
   Sound.play('eshoot');
 }
@@ -59,6 +64,11 @@ function walk(e, ang, speed, dt) {
 }
 function walkTo(e, tx, ty, speed, dt) {
   const ang = e.flying ? angleTo(e.x, e.y, tx, ty) : pathDir(e, tx, ty);
+  if (ang === null) {   // no way through for something this big: wait instead of pushing at a wall
+    e.vx = e.vy = 0;
+    e.moving = false;
+    return false;
+  }
   return walk(e, ang, speed, dt);
 }
 
@@ -88,7 +98,7 @@ const AI = {
       e.squash *= Math.exp(-7 * dt);
       e.cd -= dt;
       if (e.cd <= 0) {
-        const a = pathDir(e, p.x, p.y) + rand(-0.35, 0.35);
+        const a = (pathDir(e, p.x, p.y) ?? angleTo(e.x, e.y, p.x, p.y)) + rand(-0.35, 0.35);
         e.state = 'hop';
         e.t = h.dur;
         e.vx = (Math.cos(a) * h.dist) / h.dur;
@@ -116,7 +126,7 @@ const AI = {
     if (e.cd <= 0) {
       e.cd = f.every * rand(0.85, 1.15);
       e.puff = 1;
-      spreadShot(e, angleTo(e.x, e.y, p.x, p.y), f.shots, f.spread, f.shot, f.speed);
+      spreadShot(e, angleTo(e.x, e.y, p.x, p.y), f.shots, f.spread, f.shot, f.speed, 1, { ghost: f.over });
       FX.smoke(e.x, e.y - 10, rgba(SHOTS[f.shot].color, 0.6), 3, 5);
     }
   },
@@ -137,10 +147,10 @@ const AI = {
     }
     e.t -= dt;
     if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
-      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 110, maxDist: 250 });
+      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 110, maxDist: 250, fit: e.r });
       e.t = rand(1, 1.8);
     }
-    walk(e, angleTo(e.x, e.y, e.dest.x, e.dest.y), e.speed * e.slowK, dt);
+    walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
     e.look = angleTo(e.x, e.y, p.x, p.y);
     e.cd -= dt;
     if (e.cd <= 0 && dist(e.x, e.y, p.x, p.y) < 460) {
@@ -158,7 +168,10 @@ const AI = {
       if (e.t <= 0) { e.state = 'dash'; e.t = d.dur; Sound.play('dash'); }
     } else if (e.state === 'dash') {
       e.t -= dt;
-      const hit = walk(e, e.look, d.speed, dt);
+      const x0 = e.x, y0 = e.y;
+      walk(e, e.look, d.speed, dt);
+      // only really running into something ends the charge, grazing a wall does not
+      const hit = dist(x0, y0, e.x, e.y) < d.speed * dt * 0.5;
       if (Math.random() < dt * 30) FX.smoke(e.x, e.y + e.r * 0.6, 'rgba(230,210,180,0.7)', 1, 5);
       if (hit || e.t <= 0) {
         if (hit) {
@@ -177,7 +190,7 @@ const AI = {
       walkTo(e, p.x, p.y, e.speed * e.slowK, dt);
       e.look = angleTo(e.x, e.y, p.x, p.y);
       e.cd -= dt;
-      if (e.cd <= 0 && dist(e.x, e.y, p.x, p.y) < 330 && lineClear(e.x, e.y, p.x, p.y, true)) {
+      if (e.cd <= 0 && dist(e.x, e.y, p.x, p.y) < 330 && pathClear(e.x, e.y, p.x, p.y, e.r)) {
         e.state = 'windup';
         e.t = d.windup;
         e.dashes = d.count;
@@ -357,10 +370,10 @@ const AI = {
     }
     e.t -= dt;
     if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
-      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230 });
+      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230, fit: e.r });
       e.t = rand(1.2, 2);
     }
-    walk(e, angleTo(e.x, e.y, e.dest.x, e.dest.y), e.speed * e.slowK, dt);
+    walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
     e.look = angleTo(e.x, e.y, p.x, p.y);
     e.cd -= dt;
     if (e.cd <= 0) { e.state = 'cast'; e.t = 0.6; }

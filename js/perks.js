@@ -50,15 +50,18 @@ const PERKS = [
   { id: 'vampire', name: 'Bloodthirst', rarity: 'rare', max: 3, icon: 'fang',
     desc: 'Heal 2% of max HP for every kill', mod: (s, L) => { s.vamp += 0.02 * L; } },
   { id: 'holy', name: 'Holy Shield', rarity: 'rare', max: 3, icon: 'shield',
-    desc: 'A shield blocks one hit, then recharges', mod: (s, L) => { s.shield = L ? 12 - L * 2.5 : 0; } },
+    desc: L => [
+      'A shield blocks one hit. It returns after each room',
+      'When it breaks, the shield wipes out nearby shots',
+      'When it breaks, it also hurts and blasts away nearby enemies',
+    ][L - 1],
+    mod: (s, L) => { s.shield = L; } },
   { id: 'wisp', name: 'Spirit Friend', rarity: 'rare', max: 3, icon: 'wisp',
     desc: 'A spirit flies with you and shoots enemies', mod: (s, L) => { s.wisps += L; } },
   { id: 'blades', name: 'Spinning Blades', rarity: 'rare', max: 3, icon: 'blades',
     desc: '2 blades circle you and cut enemies', mod: (s, L) => { s.blades += L + 1; } },
   { id: 'guard', name: 'Guardian Orbs', rarity: 'rare', max: 2, icon: 'orbs',
     desc: '2 orbs circle you and block enemy shots', mod: (s, L) => { s.guards += 2 * L; } },
-  { id: 'rungun', name: 'Run & Gun', rarity: 'rare', max: 1, icon: 'run',
-    desc: 'Shoot at full speed while moving', mod: (s, L) => { if (L) s.moveRate = 1; } },
   { id: 'agile', name: 'Agility', rarity: 'rare', max: 3, icon: 'dodge',
     desc: '12% chance to dodge a hit', mod: (s, L) => { s.dodge += 0.12 * L; } },
 
@@ -79,6 +82,8 @@ const PERKS = [
     desc: 'Up to +60% damage when your HP is low', mod: (s, L) => { s.rage += 0.6 * L; } },
   { id: 'headshot', name: 'Headshot', rarity: 'epic', max: 2, icon: 'skull',
     desc: '3% chance to defeat a normal enemy in one hit', mod: (s, L) => { s.headshot += 0.03 * L; } },
+  { id: 'rungun', name: 'Run & Gun', rarity: 'epic', max: 1, icon: 'run',
+    desc: 'Shoot at full speed while moving', mod: (s, L) => { if (L) s.moveRate = 1; } },
 
   // ---- legendary ----
   { id: 'extralife', name: 'Extra Life', rarity: 'legendary', max: 1, icon: 'ankh',
@@ -93,6 +98,8 @@ const PERKS = [
     desc: 'Enemy shots fly 30% slower', mod: (s, L) => { s.bulletSlow = L ? 0.7 : 1; } },
 ];
 const PERK_BY_ID = Object.fromEntries(PERKS.map(p => [p.id, p]));
+// Most perks have one description; a few change with the level (desc is a function of it).
+const perkDesc = (k, L) => (typeof k.desc === 'function' ? k.desc(Math.max(1, L)) : k.desc);
 
 // Base stats from the hero plus permanent upgrades.
 function baseStats(hero) {

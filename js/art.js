@@ -881,9 +881,12 @@ function drawEnemy(ctx, e, t) {
 
 function drawEnemyShot(ctx, b, t) {
   const c = b.color;
-  glow(ctx, b.x, b.y, b.r * 3.2, c, 0.9);
+  // lobbed shots fly over the scenery: lifted off the ground with a shadow underneath
+  const lift = b.ghost ? 5 : 0;
+  if (b.ghost) drawShadow(ctx, b.x, b.y + 8, b.r * 0.9, 0.2);
+  glow(ctx, b.x, b.y - lift, b.r * 3.2, c, 0.9);
   ctx.save();
-  ctx.translate(b.x, b.y);
+  ctx.translate(b.x, b.y - lift);
   const a = Math.atan2(b.vy, b.vx);
   switch (b.kind) {
     case 'arrow':

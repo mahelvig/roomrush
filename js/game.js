@@ -92,7 +92,7 @@ function beginRoom() {
 function spawnRoomEnemies() {
   const w = G.world, idx = G.roomIdx, p = G.player;
   if (G.roomType === 'boss') { spawnBoss(w.boss); return; }
-  const types = w.enemies.slice(0, Math.min(w.enemies.length, 2 + Math.floor((idx - 1) / 3)));
+  const types = enemyPool(w, idx);
   let budget = DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4;
   let n = 0;
   if (G.roomType === 'elite') {
@@ -102,7 +102,7 @@ function spawnRoomEnemies() {
   }
   while (budget > 0.4 && n < DIFFICULTY.maxEnemies) {
     const type = pick(types), def = ENEMIES[type];
-    const spot = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 190, maxRow: ROWS - 6, ground: !def.flying });
+    const spot = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 190, maxRow: ROWS - 6, ground: !def.flying, fit: def.flying ? 0 : def.r });
     spawnEnemy(type, spot.x, spot.y, { spawnT: 0.5 + n * 0.07 });
     budget -= def.cost;
     n++;
@@ -121,6 +121,11 @@ function onRoomCleared() {
   UI.banner('Cleared!', '', 'clear');
   const p = G.player;
   if (p.s.roomHeal > 0) healPlayer(p.s.maxHp * p.s.roomHeal);
+  if (p.s.shield > 0 && !p.shieldUp) {   // Holy Shield only comes back once the room is won
+    p.shieldUp = true;
+    FX.ring(p.x, p.y, 26, '#ffe58a', 0.5, 4);
+    FX.text(p.x, p.y - 44, 'Shield back!', '#ffe58a', 11, { life: 1.2 });
+  }
   if (!save.seenHint) { save.seenHint = true; writeSave(); }
 }
 
@@ -282,7 +287,6 @@ function updateGame(dt) {
   updatePlayer(p, dt);
   if (G.state !== 'play') return;
   updateHelpers(p, dt);
-  updateFlow(p.x, p.y);
   for (const e of G.enemies) updateEnemy(e, dt, p);
   separateEnemies();
   contactDamage(p);
@@ -417,7 +421,11 @@ function updateEnemyShots(dt, p) {
     }
     b.x += b.vx * dt;
     b.y += b.vy * dt;
-    if (b.life <= 0 || (!b.ghost && tileAt(b.x, b.y) === TILE.WALL)) {
+    // lobbed shots (ghost) pass over the scenery and only stop at the edge of the room
+    const stopped = b.ghost
+      ? b.x < ROOM_X || b.x > ROOM_X + ROOM_W || b.y < ROOM_Y || b.y > ROOM_Y + ROOM_H
+      : tileAt(b.x, b.y) === TILE.WALL;
+    if (b.life <= 0 || stopped) {
       FX.burst(b.x, b.y, b.color, 3, { min: 20, max: 70 });
       S.splice(i, 1);
       continue;

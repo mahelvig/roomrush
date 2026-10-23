@@ -7,7 +7,7 @@ function createPlayer(hero, perks) {
     x: DOOR_X, y: ROOM_Y + ROOM_H - 36, r: 10, vx: 0, vy: 0,
     aim: -Math.PI / 2, walk: 0, moving: false, stillT: 0, t: 0,
     cd: 0.4, volleys: [], recoil: 0, invuln: 0, flash: 0,
-    shieldUp: false, shieldT: 0, slowT: 0, hazardT: 0,
+    shieldUp: false, shieldBurst: false, slowT: 0, hazardT: 0,
     target: null, targetT: 0, meteorT: 3, stormT: 2, livesUsed: 0, dead: false,
   };
   p.s = computeStats(p);
@@ -68,10 +68,7 @@ function updatePlayer(p, dt) {
   p.flash = Math.max(0, p.flash - dt);
   p.slowT = Math.max(0, p.slowT - dt);
   p.recoil = Math.max(0, p.recoil - dt * 6);
-  if (s.shield > 0 && !p.shieldUp) {
-    p.shieldT -= dt;
-    if (p.shieldT <= 0) { p.shieldUp = true; FX.ring(p.x, p.y, 22, '#ffe58a', 0.4, 3); }
-  }
+  if (p.shieldBurst) { p.shieldBurst = false; shieldBurst(p); }
 
   // floor hazards
   const tile = tileAt(p.x, p.y + 3);
@@ -196,7 +193,7 @@ function hurtPlayer(amount, o = {}) {
   }
   if (p.shieldUp) {
     p.shieldUp = false;
-    p.shieldT = p.s.shield;
+    p.shieldBurst = true;   // handled in updatePlayer, we may be in the middle of a loop over shots or enemies
     p.invuln = 0.5;
     FX.ring(p.x, p.y, 30, '#ffe58a', 0.4, 5);
     FX.burst(p.x, p.y, ['#ffe58a', '#ffffff'], 10, { min: 60, max: 140 });
@@ -215,6 +212,28 @@ function hurtPlayer(amount, o = {}) {
   Sound.play('hurt');
   if (p.hp <= 0) playerDown(p);
   return true;
+}
+
+// What a broken Holy Shield does: level 2 wipes out nearby shots, level 3 also blasts enemies away.
+const SHIELD_BURST_R = 120;
+function shieldBurst(p) {
+  const L = p.s.shield;
+  if (L < 2) return;
+  FX.ring(p.x, p.y, SHIELD_BURST_R, '#ffe58a', 0.5, 6);
+  for (let i = G.eshots.length - 1; i >= 0; i--) {
+    const b = G.eshots[i];
+    if (dist2(p.x, p.y, b.x, b.y) > SHIELD_BURST_R * SHIELD_BURST_R) continue;
+    FX.burst(b.x, b.y, ['#ffe58a', '#ffffff'], 3, { min: 30, max: 90 });
+    G.eshots.splice(i, 1);
+  }
+  if (L < 3) return;
+  for (const e of G.enemies) {
+    if (!canTarget(e) || dist(p.x, p.y, e.x, e.y) > SHIELD_BURST_R + e.r) continue;
+    const a = angleTo(p.x, p.y, e.x, e.y);
+    if (!e.boss) { e.kbx = Math.cos(a) * 420; e.kby = Math.sin(a) * 420; }
+    hurtEnemy(e, playerAtk(p) * 2, { color: '#ffe58a' });
+  }
+  FX.kick(4);
 }
 
 function healPlayer(amount) {

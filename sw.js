@@ -1,5 +1,5 @@
 // Offline support: always try the network first (so updates show up), fall back to the cache.
-const CACHE = 'roomrush-v1';
+const CACHE = 'roomrush-v2';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/util.js', 'js/config.js', 'js/save.js', 'js/audio.js', 'js/input.js', 'js/room.js', 'js/art.js',
