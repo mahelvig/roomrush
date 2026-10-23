@@ -34,15 +34,16 @@ function canTarget(e) {
 }
 
 function findTarget(p) {
-  let best = null, bestD = Infinity, bestBlocked = null, bestBD = Infinity;
+  let best = null, bestD = Infinity, bestBlocked = null, bestBD = Infinity, shielded = null;
   for (const e of G.enemies) {
     if (!canTarget(e)) continue;
+    if (e.shielded) { shielded = e; continue; }   // a shielded boss only when nothing else is left
     const d = dist2(p.x, p.y, e.x, e.y);
     if (lineClear(p.x, p.y, e.x, e.y, false)) {
       if (d < bestD) { bestD = d; best = e; }
     } else if (d < bestBD) { bestBD = d; bestBlocked = e; }
   }
-  return best || bestBlocked;
+  return best || bestBlocked || shielded;
 }
 
 function updatePlayer(p, dt) {
@@ -230,7 +231,7 @@ function shieldBurst(p) {
   for (const e of G.enemies) {
     if (!canTarget(e) || dist(p.x, p.y, e.x, e.y) > SHIELD_BURST_R + e.r) continue;
     const a = angleTo(p.x, p.y, e.x, e.y);
-    if (!e.boss) { e.kbx = Math.cos(a) * 420; e.kby = Math.sin(a) * 420; }
+    if (!e.boss && !e.anchored) { e.kbx = Math.cos(a) * 420; e.kby = Math.sin(a) * 420; }
     hurtEnemy(e, playerAtk(p) * 2, { color: '#ffe58a' });
   }
   FX.kick(4);

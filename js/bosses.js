@@ -1,16 +1,82 @@
 'use strict';
-// Bosses: a list of attack moves that they cycle through. Below half HP they get angry (phase 2).
+// Bosses: a list of attack moves that they cycle through. At 60% and 25% HP they raise a shield held
+// up by three crystals and get angrier (phase 2 and 3); in phase 3 they add a signature move.
+// After BOSS_FURY_AT seconds everything they do slowly speeds up.
 
 function spawnBoss(key) {
   const def = Object.assign({ ai: 'boss' }, BOSSES[key]);
   const e = spawnEnemy('slime', DOOR_X, ROOM_Y + 150, { spawnT: 1.2 });
+  const hp = Math.round(def.hp * TIER.hp ** G.tier);
+  const firstOnTier = G.tier > (save.tiers[G.world.id] ?? -1);
   Object.assign(e, {
-    def, type: key, r: def.r, pal: def.pal, hp: def.hp, maxHp: def.hp, dmg: def.dmg, speed: def.speed,
-    state: 'intro', t: 1.4, boss: true, flying: !!def.flying, lastMove: null, phase2: false, m: null,
+    def, type: key, r: def.r, pal: def.pal, hp, maxHp: hp, dmg: Math.round(def.dmg * TIER.dmg ** G.tier), speed: def.speed,
+    state: 'intro', t: 1.4, boss: true, flying: !!def.flying, lastMove: null, phase2: false, phase3: false, m: null,
+    phaseIdx: 0, shielded: false, crystals: [], fightT: 0, fury: 0, sinceSig: 0,
+    gems: def.gems * (firstOnTier ? 2 : 1) + G.tier,
   });
   e.spawnMax = 1.2;
   G.boss = e;
   return e;
+}
+
+// How much of a hit the boss takes: nothing while shielded, and a hit that crosses a phase line
+// stops on it (the shield goes up next frame).
+function bossTakeHit(e, d) {
+  if (e.shielded || e.shieldDue) return 0;
+  const line = BOSS_PHASES[e.phaseIdx];
+  if (line !== undefined && e.hp - d <= e.maxHp * line) {
+    d = Math.max(0, Math.ceil(e.hp - e.maxHp * line));
+    e.shieldDue = true;
+  }
+  return d;
+}
+
+function startShieldPhase(e) {
+  e.phaseIdx++;
+  e.shielded = true;
+  if (e.phaseIdx === 1) {
+    e.phase2 = true;
+    FX.text(e.x, e.y - e.r - 30, 'ENRAGED!', '#ff5a6e', 18, { life: 1.6, pop: 0.6, vy: -30 });
+  } else {
+    e.phase3 = true;
+    FX.text(e.x, e.y - e.r - 30, 'FINAL FORM!', '#ff5a6e', 18, { life: 1.6, pop: 0.6, vy: -30 });
+  }
+  FX.ring(e.x, e.y, 140, '#ff5a6e', 0.6, 8);
+  FX.kick(9);
+  Sound.play('boss');
+  // three crystals spread round the room hold the shield up
+  const spots = [[ROOM_X + 55, ROOM_Y + ROOM_H * 0.42], [ROOM_X + ROOM_W - 55, ROOM_Y + ROOM_H * 0.42], [DOOR_X, ROOM_Y + ROOM_H * 0.78]];
+  e.crystals = spots.map(([x, y]) => {
+    const spot = blocksWalk(tileAt(x, y)) ? randomOpenSpot({ fromX: x, fromY: y, maxDist: 90 }) : { x, y };
+    const c = spawnEnemy('crystal', spot.x, spot.y, { spawnT: 0.6 });
+    c.hp = c.maxHp = Math.round(e.maxHp * 0.03);
+    c.pal = { main: lighten(e.pal.light, 0.35), dark: e.pal.light, light: '#ffffff' };
+    c.noLoot = true;
+    c.anchored = true;
+    return c;
+  });
+}
+
+function breakShield(e) {
+  e.shielded = false;
+  e.crystals = [];
+  FX.ring(e.x, e.y, e.r * 3, '#bfe6ff', 0.6, 8);
+  FX.burst(e.x, e.y, ['#bfe6ff', '#ffffff'], 30, { min: 80, max: 260 });
+  FX.text(e.x, e.y - e.r - 30, 'SHIELD BROKEN', '#bfe6ff', 15, { life: 1.3, pop: 0.5, vy: -30 });
+  FX.kick(8);
+  Sound.play('shield');
+  // a short daze: the moment to hit back
+  e.state = 'dazed';
+  e.t = 1.6;
+  e.dizzy = true;
+  e.m = null;
+  e.anim = null;
+  e.alpha = 1;
+  e.hidden = false;
+  e.laser = null;
+  e.lasers = null;
+  e.windup = false;
+  if (e.phase3) e.sinceSig = 99;   // open the last phase with the signature move
 }
 
 const bossShot = (e, k = 0) => (e.def.altShot && k % 2 ? e.def.altShot : e.def.shot);
@@ -18,16 +84,24 @@ const bossShot = (e, k = 0) => (e.def.altShot && k % 2 ? e.def.altShot : e.def.s
 function updateBoss(e, dt, p) {
   e.look = angleTo(e.x, e.y, p.x, p.y);
   e.slowK = e.status.slow > 0 ? 0.8 : 1;
-  if (!e.phase2 && e.hp < e.maxHp * 0.5) {
-    e.phase2 = true;
-    FX.text(e.x, e.y - e.r - 30, 'ENRAGED!', '#ff5a6e', 18, { life: 1.6, pop: 0.6, vy: -30 });
-    FX.ring(e.x, e.y, 140, '#ff5a6e', 0.6, 8);
-    FX.kick(9);
-    Sound.play('boss');
-  }
+  if (e.shieldDue) { e.shieldDue = false; startShieldPhase(e); }
+  if (e.shielded && e.crystals.every(c => c.dead)) breakShield(e);
   if (e.state === 'intro') {
     e.t -= dt;
     if (e.t <= 0) { e.state = 'idle'; e.t = 0.6; }
+    return;
+  }
+  e.fightT += dt;
+  if (e.fightT > BOSS_FURY_AT && !e.fury) {
+    FX.text(e.x, e.y - e.r - 30, 'FURY!', '#ff5a6e', 18, { life: 1.6, pop: 0.6, vy: -30 });
+    Sound.play('boss');
+  }
+  e.fury = clamp((e.fightT - BOSS_FURY_AT) / 60, 0, 1);
+  // the last phase and fury make everything the boss does faster
+  dt *= (e.phase3 ? 1.25 : 1) * (1 + 0.5 * e.fury);
+  if (e.state === 'dazed') {
+    e.t -= dt;
+    if (e.t <= 0) { e.state = 'idle'; e.t = 0.3; e.dizzy = false; }
     return;
   }
   if (e.state === 'idle') {
@@ -50,13 +124,17 @@ function updateBoss(e, dt, p) {
     e.alpha = 1;
     e.hidden = false;
     e.laser = null;
+    e.lasers = null;
   }
 }
 
 function startBossMove(e) {
   const minions = G.enemies.filter(o => o.minion && !o.dead).length;
   const options = e.def.moves.filter(m => m !== e.lastMove && !(m === 'summon' && minions >= 4));
-  e.move = pick(options);
+  // in the last phase every third move is the signature move
+  e.sinceSig++;
+  if (e.phase3 && e.sinceSig >= 3) { e.move = e.def.sig; e.sinceSig = 0; }
+  else e.move = pick(options);
   e.lastMove = e.move;
   e.m = { t: 0 };
   e.state = 'move';
@@ -187,7 +265,7 @@ const BOSS_MOVES = {
   },
 
   charge(e, dt, p, m) {
-    if (m.t === 0) { m.state = 'windup'; m.k = 0; m.count = e.phase2 ? 3 : 2; }
+    if (m.t === 0) { m.state = 'windup'; m.k = 0; m.count = e.phase3 ? 3 : e.phase2 ? 2 : 1; }
     m.k += dt;
     if (m.state === 'windup') {
       if (m.k < 0.45) e.chargeAng = angleTo(e.x, e.y, p.x, p.y);
@@ -260,6 +338,69 @@ const BOSS_MOVES = {
       }
     } else if (m.k > 0.4) return true;
     return false;
+  },
+
+  // Treant: roots burst up across the whole room except a narrow lane, twice, top to bottom
+  rootfield(e, dt, p, m) {
+    if (m.t === 0) { m.waves = 0; m.next = 0; m.lane = rand(ROOM_X + 70, ROOM_X + ROOM_W - 70); }
+    if (m.t >= m.next && m.waves < 2) {
+      if (m.waves) m.lane = clamp(m.lane + (m.lane < DOOR_X ? 1 : -1) * rand(100, 150), ROOM_X + 50, ROOM_X + ROOM_W - 50);
+      for (let row = 0, y = ROOM_Y + 22; y < ROOM_Y + ROOM_H - 6; row++, y += 34) {
+        for (let x = ROOM_X + 10 + (row % 2) * 20; x < ROOM_X + ROOM_W; x += 40) {
+          if (Math.abs(x - m.lane) < 55 || tileAt(x, y) === TILE.WALL) continue;
+          const t = 1.1 + ((y - ROOM_Y) / ROOM_H) * 0.6;
+          G.strikes.push({ x, y, r: 20, t, max: t, dmg: e.dmg, owner: 'enemy', kind: 'root', quiet: true });
+        }
+      }
+      Sound.play('warn');
+      m.waves++;
+      m.next += 2.1;
+    }
+    return m.waves >= 2 && m.t > m.next - 0.2;
+  },
+
+  // Magma King: three lava beams sweep round him
+  eruption(e, dt, p, m) {
+    const warnT = 1.0, fireT = 4.2;
+    if (m.t === 0) { m.ang = rand(0, TAU); m.dir = chance(0.5) ? 1 : -1; Sound.play('warn'); }
+    const on = m.t > warnT;
+    if (on) {
+      if (!m.fired) { m.fired = true; Sound.play('zap'); FX.kick(6); }
+      m.ang += m.dir * 0.42 * dt;   // slow enough to walk along with the gap between two beams
+    }
+    e.lasers = [0, 1, 2].map(i => {
+      const a = m.ang + (i * TAU) / 3;
+      return { ang: a, len: rayLength(e.x, e.y, a), on };
+    });
+    if (on) {
+      for (const L of e.lasers) {
+        const dx = Math.cos(L.ang), dy = Math.sin(L.ang);
+        const along = clamp((p.x - e.x) * dx + (p.y - e.y) * dy, 0, L.len);
+        if (Math.hypot(p.x - e.x - dx * along, p.y - e.y - dy * along) < 12 + p.r) hurtPlayer(e.dmg);
+      }
+    }
+    if (m.t >= warnT + fireT) { e.lasers = null; return true; }
+    return false;
+  },
+
+  // Lich: splits into three; two are illusions that shoot but take no damage
+  mirror(e, dt, p, m) {
+    if (m.t === 0) {
+      for (const o of G.enemies) if (o.decoy) o.life = 0;   // old illusions fade first
+      const spots = shuffle([[ROOM_X + 70, ROOM_Y + 120], [DOOR_X, ROOM_Y + 90], [ROOM_X + ROOM_W - 70, ROOM_Y + 120]]);
+      FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 16, { min: 40, max: 140 });
+      e.x = spots[0][0]; e.y = spots[0][1];
+      for (const [x, y] of spots.slice(1)) {
+        const d = spawnEnemy('slime', x, y, { spawnT: 0.4 });
+        Object.assign(d, {
+          def: Object.assign({}, e.def, { ai: 'decoy' }), type: 'decoy', r: e.r, pal: e.pal, dmg: e.dmg,
+          hp: 1, maxHp: 1, flying: true, decoy: true, noLoot: true, anchored: true, life: 7, cd: rand(0.6, 1.2), alpha: 0.82,
+        });
+      }
+      for (const [x, y] of spots) FX.burst(x, y, [e.pal.light, '#ffffff'], 12, { min: 40, max: 120 });
+      Sound.play('blink');
+    }
+    return m.t > 0.8;
   },
 };
 

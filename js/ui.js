@@ -9,6 +9,9 @@ const SVG = {
 };
 
 const coinTag = n => `<span class="amt"><i class="coin-ico"></i>${fmt(n)}</span>`;
+// The tier a world starts on: the one picked last time, or the highest open one.
+const pickedTier = w => clamp(save.tierPick[w.id] ?? tierUnlocked(w), 0, tierUnlocked(w));
+const mult = v => (v < 10 ? v.toFixed(1).replace('.0', '') : fmt(v));
 const gemTag = n => `<span class="amt"><i class="gem-ico"></i>${fmt(n)}</span>`;
 
 const UI = {
@@ -84,7 +87,7 @@ const UI = {
   updateHud() {
     if (!G.run) return;
     const w = G.world;
-    this.hudEl.querySelector('.hud-world').textContent = `${w.name} · ${G.roomIdx}/${ROOMS_PER_WORLD}`;
+    this.hudEl.querySelector('.hud-world').textContent = `${G.tier ? `${w.short} · ${tierName(G.tier)}` : w.name} · ${G.roomIdx}/${ROOMS_PER_WORLD}`;
     let dots = '';
     for (let i = 1; i <= ROOMS_PER_WORLD; i++) {
       const type = roomTypeOf(i);
@@ -104,11 +107,12 @@ const UI = {
       this.bossHp(1);
     }
   },
-  bossHp(k) {
+  bossHp(k, shielded) {
     const f = this.bossEl.querySelector('.bb-fill');
     const v = `${Math.max(0, k) * 100}%`;
     if (f.style.width !== v) f.style.width = v;
-    this.bossEl.classList.toggle('rage', k < 0.5);
+    this.bossEl.classList.toggle('rage', k < BOSS_PHASES[0]);
+    this.bossEl.classList.toggle('shielded', !!shielded);
   },
   banner(title, sub, cls) {
     const b = this.bannerEl;
@@ -133,7 +137,7 @@ const UI = {
     const run = loadRun();
     const cont = run && WORLDS[run.world] ? `
       <div class="continue panel pop">
-        <div><b>Run in progress</b><span>${WORLDS[run.world].name} · Room ${run.room}/${ROOMS_PER_WORLD}</span></div>
+        <div><b>Run in progress</b><span>${WORLDS[run.world].name}${run.tier ? ` · ${tierName(run.tier)}` : ''} · Room ${run.room}/${ROOMS_PER_WORLD}</span></div>
         <button class="btn green" data-a="continue">Continue</button>
         <button class="icon-btn" data-a="abandon" aria-label="Give up run">${SVG.x}</button>
       </div>` : '';
@@ -175,12 +179,28 @@ const UI = {
             <span class="best">${cleared ? `Cleared ${cleared}×` : best ? `Best: room ${best}/${ROOMS_PER_WORLD}` : 'Not played yet'}</span>
           </div>
           ${locked ? `<div class="lock">${SVG.lock}<span>Beat ${WORLDS[i - 1].name}</span></div>` : ''}
-        </button>`;
+        </button>
+        ${!locked && tierUnlocked(w) > 0 ? this.tierRow(i) : ''}`;
     }).join('');
     this.open(`
       <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Choose a world</h2></header>
       <div class="list">${cards}</div>
     `, 'worlds');
+  },
+
+  // Difficulty picker under a world card, shown once the world is cleared on Normal.
+  tierRow(i) {
+    const w = WORLDS[i], t = pickedTier(w), top = tierUnlocked(w);
+    const done = t <= (save.tiers[w.id] ?? -1);
+    return `
+      <div class="tier-row panel" data-w="${i}">
+        <button class="round small" data-a="tier" data-w="${i}" data-d="-1" ${t <= 0 ? 'disabled' : ''} aria-label="Easier">${SVG.back}</button>
+        <div class="tier-info">
+          <b class="t${Math.min(t, 4)}">${tierName(t)}${done ? ' <i>✓</i>' : ''}</b>
+          <span>${t ? `Enemies ×${mult(TIER.hp ** t)} HP · ×${mult(TIER.gold ** t)} gold` : 'The normal game'}</span>
+        </div>
+        <button class="round small flip" data-a="tier" data-w="${i}" data-d="1" ${t >= top ? 'disabled' : ''} aria-label="Harder">${SVG.back}</button>
+      </div>`;
   },
 
   heroes() {
@@ -317,7 +337,7 @@ const UI = {
     this.open(`
       <div class="panel result lose">
         <h2>Defeated</h2>
-        <p class="sub">${sum.world.name} · reached room ${sum.room}/${ROOMS_PER_WORLD}</p>
+        <p class="sub">${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''} · reached room ${sum.room}/${ROOMS_PER_WORLD}</p>
         <div class="facts">
           <span><b>${coinTag(sum.gold)}</b>Gold</span>
           <span><b>${gemTag(sum.gems)}</b>Gems</span>
@@ -339,7 +359,7 @@ const UI = {
       <div class="panel result win">
         <div class="trophy"><canvas class="icon" data-icon="star"></canvas></div>
         <h2>World cleared!</h2>
-        <p class="sub">${sum.world.name}${sum.first ? ' · first clear bonus +10 gems' : ''}</p>
+        <p class="sub">${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''}${sum.bonus > 3 ? ` · first clear bonus +${sum.bonus} gems` : ''}</p>
         <div class="facts">
           <span><b>${coinTag(sum.gold)}</b>Gold</span>
           <span><b>${gemTag(sum.gems)}</b>Gems</span>
@@ -347,7 +367,10 @@ const UI = {
           <span><b>${fmtTime(sum.time)}</b>Time</span>
         </div>
         ${sum.unlocked ? `<p class="unlock">New world unlocked: <b>${sum.unlocked.name}</b></p>` : ''}
-        ${sum.unlocked ? `<button class="btn big green" data-a="start" data-w="${WORLDS.indexOf(sum.unlocked)}">Enter ${sum.unlocked.short}</button>` : `<button class="btn big green" data-a="again">Play again</button>`}
+        ${sum.nextTier ? `<p class="unlock">New difficulty unlocked: <b>${sum.nextTier}</b></p>` : ''}
+        ${sum.unlocked ? `<button class="btn big green" data-a="start" data-w="${WORLDS.indexOf(sum.unlocked)}" data-t="0">Enter ${sum.unlocked.short}</button>`
+          : sum.nextTier ? `<button class="btn big green" data-a="start" data-w="${WORLDS.indexOf(sum.world)}" data-t="${sum.tier + 1}">Play on ${sum.nextTier}</button>`
+          : `<button class="btn big green" data-a="again">Play again</button>`}
         <div class="row">
           <button class="btn purple" data-a="upgrades">Upgrades</button>
           <button class="btn blue" data-a="title">Home</button>
@@ -368,8 +391,20 @@ const ACTIONS = {
   heroes: () => UI.heroes(),
   upgrades: () => UI.upgrades(),
   settings: () => UI.settings(),
-  start: d => { goFullscreen(); startRun(+d.w); },
-  again: () => { goFullscreen(); startRun(G.worldIdx); },
+  start: d => {
+    const w = WORLDS[+d.w];
+    if (d.t !== undefined) { save.tierPick[w.id] = +d.t; writeSave(); }
+    goFullscreen();
+    startRun(+d.w, null, pickedTier(w));
+  },
+  again: () => { goFullscreen(); startRun(G.worldIdx, null, G.tier); },
+  tier: d => {
+    const w = WORLDS[+d.w];
+    save.tierPick[w.id] = clamp(pickedTier(w) + +d.d, 0, tierUnlocked(w));
+    writeSave();
+    const row = UI.root.querySelector(`.tier-row[data-w="${d.w}"]`);
+    if (row) row.outerHTML = UI.tierRow(+d.w);
+  },
   continue: () => {
     const run = loadRun();
     if (!run) return UI.title();

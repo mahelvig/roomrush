@@ -213,6 +213,12 @@ h2, h3 {
 }
 .bb-fill { height: 100%; width: 100%; background: linear-gradient(#ff8e8e, #df3f4e); transition: width .12s linear; }
 #bossbar.rage .bb-fill { background: linear-gradient(#ffc06a, #ff4a2a); }
+#bossbar.shielded .bb-fill { background: linear-gradient(#d6f0ff, #5aa8e0); }
+/* marks at the phase lines (BOSS_PHASES in config.js) */
+.bb-track { position: relative; }
+.bb-track::before, .bb-track::after { content: ''; position: absolute; top: 0; bottom: 0; width: .14em; background: rgba(20, 10, 30, .85); }
+.bb-track::before { left: 60%; }
+.bb-track::after { left: 25%; }
 
 #banner {
   position: absolute;
@@ -363,6 +369,21 @@ header h2 { flex: 1; font-size: 1.7em; }
 }
 .world-card .lock svg { width: 2.2em; height: 2.2em; }
 .world-card:active:not(:disabled) { transform: translateY(.15em); }
+
+/* difficulty picker under a world card */
+.tier-row { display: flex; align-items: center; gap: .5em; padding: .45em .55em; margin-top: -.35em; }
+.tier-info { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.tier-info b { font-family: var(--title); font-weight: normal; font-size: 1.15em; }
+.tier-info b i { font-style: normal; color: #7be05a; }
+.tier-info span { color: var(--muted); font-size: .8em; }
+.tier-info .t1 { color: #ffcf3f; }
+.tier-info .t2 { color: #ff9a3c; }
+.tier-info .t3 { color: #ff5a6e; }
+.tier-info .t4 { color: #c98bff; }
+.round.small { width: 2.15em; height: 2.15em; }
+.round.small svg { width: 1.05em; height: 1.05em; }
+.round.flip svg { transform: scaleX(-1); }
+.round:disabled { filter: grayscale(.8) brightness(.6); }
 
 /* heroes */
 .hero-card { display: flex; gap: .5em; padding: .6em .7em .7em .4em; align-items: center; }

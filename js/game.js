@@ -2,7 +2,7 @@
 // The run: rooms, clearing them, perks, shots, pickups, camera and drawing the game world.
 
 const G = {
-  state: 'menu', world: WORLDS[0], worldIdx: 0, run: null, player: null,
+  state: 'menu', world: WORLDS[0], worldIdx: 0, tier: 0, run: null, player: null,
   enemies: [], shots: [], eshots: [], pickups: [], helpers: [], zones: [], warns: [], strikes: [],
   time: 0, roomIdx: 1, roomType: 'normal', cleared: false, clearT: 0, perkShown: false,
   doorOpen: false, doorT: 0, camY: 0, viewH: 640, hudH: 50, nextId: 0, scale: 1, dpr: 1,
@@ -11,12 +11,13 @@ const G = {
 
 // ---------- run flow ----------
 
-function startRun(worldIdx, resume) {
+function startRun(worldIdx, resume, tier = 0) {
   const hero = HERO_BY_ID[resume ? resume.hero : save.hero] || HEROES[0];
   G.worldIdx = worldIdx;
   G.world = WORLDS[worldIdx];
+  G.tier = resume ? resume.tier || 0 : tier;
   G.run = resume || {
-    world: worldIdx, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
+    world: worldIdx, tier, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
     livesUsed: 0, metaRevive: upgradeLevel('revive') > 0, rerolls: upgradeLevel('reroll'),
     startPicks: upgradeLevel('start'), hp: null,
   };
@@ -84,7 +85,7 @@ function beginRoom() {
   } else if (G.roomType === 'elite') {
     UI.banner('Elite Room', ENEMIES[G.enemies[0].type].name, 'elite');
   } else {
-    UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name : '', '');
+    UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name + (G.tier ? ` · ${tierName(G.tier)}` : '') : '', '');
   }
   if (G.roomIdx === 1 && !save.seenHint) UI.hint(isTouch ? 'Drag anywhere to move. Stand still to shoot faster!' : 'Move with WASD or the arrow keys. Stand still to shoot faster!');
 }
@@ -107,6 +108,7 @@ function spawnRoomEnemies() {
     budget -= def.cost;
     n++;
   }
+  giveRoomAffixes();
 }
 
 function onRoomCleared() {
@@ -207,7 +209,7 @@ function endRun(won) {
   clearRun();
   writeSave();
   return {
-    world: G.world, room: G.roomIdx, gold: run.gold, gems: run.gems, kills: run.kills || 0,
+    world: G.world, tier: G.tier, room: G.roomIdx, gold: run.gold, gems: run.gems, kills: run.kills || 0,
     time: run.time, perks: Object.assign({}, G.player.perks), hero: G.player.hero,
   };
 }
@@ -225,8 +227,11 @@ function victory() {
   G.winShown = true;
   const w = G.world;
   const first = !save.cleared[w.id];
-  G.run.gems += first ? 10 : 3;
+  const newTier = G.tier > (save.tiers[w.id] ?? -1);   // first clear on this tier
+  const bonus = first ? 10 : newTier ? 10 + 5 * G.tier : 3;
+  G.run.gems += bonus;
   save.cleared[w.id] = (save.cleared[w.id] || 0) + 1;
+  if (newTier) save.tiers[w.id] = G.tier;
   let unlockedWorld = null;
   if (G.worldIdx + 2 > save.unlocked && G.worldIdx + 1 < WORLDS.length) {
     save.unlocked = G.worldIdx + 2;
@@ -234,6 +239,8 @@ function victory() {
   }
   const sum = endRun(true);
   sum.first = first;
+  sum.bonus = bonus;
+  sum.nextTier = newTier ? tierName(G.tier + 1) : null;
   sum.unlocked = unlockedWorld;
   Sound.stopMusic();
   Sound.play('victory');
@@ -298,7 +305,7 @@ function updateGame(dt) {
   updatePickups(dt, p);
   FX.update(dt);
   G.enemies = G.enemies.filter(e => !e.dead);
-  if (G.boss && !G.bossDead) UI.bossHp(G.boss.hp / G.boss.maxHp);
+  if (G.boss && !G.bossDead) UI.bossHp(G.boss.hp / G.boss.maxHp, G.boss.shielded);
   if (G.state !== 'play') return;
 
   if (G.roomType === 'boss') {
@@ -319,11 +326,13 @@ function updateGame(dt) {
 
 function contactDamage(p) {
   for (const e of G.enemies) {
-    if (e.spawnT > 0 || e.dead || e.hidden || (e.z || 0) > 8 || e.status.freeze > 0) continue;
+    if (e.spawnT > 0 || e.dead || e.hidden || (e.z || 0) > 8 || e.status.freeze > 0 || e.def.harmless) continue;
     const rr = e.r + p.r - 4;
     const d2 = dist2(p.x, p.y, e.x, e.y);
     if (d2 >= rr * rr) continue;
-    if (hurtPlayer(e.dmg) && !e.boss && !e.elite) {
+    const hit = hurtPlayer(e.dmg);
+    if (hit && e.aff.frost) p.slowT = 1.5;
+    if (hit && !e.boss && !e.elite) {
       const a = angleTo(p.x, p.y, e.x, e.y);
       e.kbx = Math.cos(a) * 220;
       e.kby = Math.sin(a) * 220;
@@ -341,7 +350,7 @@ function contactDamage(p) {
 function nearestEnemy(x, y, exclude, maxD = Infinity) {
   let best = null, bd = maxD * maxD;
   for (const e of G.enemies) {
-    if (!canTarget(e) || (exclude && exclude.includes(e.id))) continue;
+    if (!canTarget(e) || e.shielded || (exclude && exclude.includes(e.id))) continue;
     const d = dist2(x, y, e.x, e.y);
     if (d < bd) { bd = d; best = e; }
   }
@@ -459,6 +468,7 @@ function updateWarns(dt) {
 function updateStrikes(dt, p) {
   for (let i = G.strikes.length - 1; i >= 0; i--) {
     const s = G.strikes[i];
+    if (!s) continue; // a strike that kills the boss clears the list while we loop
     s.t -= dt;
     if (s.t > 0) continue;
     G.strikes.splice(i, 1);
@@ -466,14 +476,15 @@ function updateStrikes(dt, p) {
       if (dist(s.x, s.y, p.x, p.y) < s.r + p.r * 0.6) hurtPlayer(s.dmg);
       if (s.kind === 'root') {
         G.zones.push({ x: s.x, y: s.y, r: s.r, life: 0.6, max: 0.6, dmg: 0, kind: 'root' });
-        FX.burst(s.x, s.y, ['#8a5a36', '#5fbf4a'], 5, { min: 40, max: 110 });
+        FX.burst(s.x, s.y, ['#8a5a36', '#5fbf4a'], s.quiet ? 1 : 5, { min: 40, max: 110 });
       } else {
         FX.ring(s.x, s.y, s.r * 1.4, '#ff8a2a', 0.4, 5);
         FX.burst(s.x, s.y, ['#ff8a2a', '#ffd35a', '#5a3a36'], 12, { min: 60, max: 180 });
         FX.kick(3);
         if (s.zone) G.zones.push({ x: s.x, y: s.y, r: s.r * 0.8, life: 2.4, max: 2.4, dmg: Math.round(s.dmg * 0.35), color: '#ff7a2a' });
       }
-      Sound.play('slam');
+      // a field of many strikes makes one sound per beat, not one each
+      if (!s.quiet || G.time - (G.strikeSoundT || 0) > 0.12) { Sound.play('slam'); G.strikeSoundT = G.time; }
     } else {
       for (const e of G.enemies) {
         if (canTarget(e) && dist(e.x, e.y, s.x, s.y) < s.r + e.r) {
@@ -578,6 +589,8 @@ function drawGame(ctx) {
     ctx.fillStyle = `rgba(${c},0.25)`; ctx.fill();
   }
   for (const e of G.enemies) drawTelegraph(ctx, e, p, t);
+  for (const e of G.enemies) if (e.links) drawChains(ctx, e, t);
+  if (G.boss && G.boss.shielded) drawShieldTethers(ctx, G.boss, t);
   FX.drawBelow(ctx);
 
   for (const k of G.pickups) {
@@ -619,7 +632,9 @@ function drawGame(ctx) {
     if (!playerDrawn && !e.flying && e.y > p.y) { drawPlayer(ctx, p, t); playerDrawn = true; }
     if (!playerDrawn && e.flying) { drawPlayer(ctx, p, t); playerDrawn = true; }
     if (e.elite || e.boss) glow(ctx, e.x, e.y - (e.z || 0), e.r * 2.6, e.boss ? (e.phase2 ? '#ff5a6e' : e.pal.light) : '#ffcf3f', 0.3 + Math.sin(t * 4) * 0.08);
+    if (e.affList.length) drawAffixAura(ctx, e, t);
     drawEnemy(ctx, e, t);
+    if (e.boss && e.shielded) drawBossShield(ctx, e, t);
     if (e.status.freeze > 0) {
       rrect(ctx, e.x - e.r * 1.1, e.y - e.r * 1.4, e.r * 2.2, e.r * 2.2, 5);
       ctx.fillStyle = 'rgba(170,230,255,0.45)'; ctx.fill();
@@ -631,7 +646,8 @@ function drawGame(ctx) {
         star(ctx, e.x + Math.cos(a) * e.r * 0.8, e.y - e.r * 1.3 + Math.sin(a) * 3, 2.5, '#ffe55a');
       }
     }
-    if (e.laser) drawLaser(ctx, e, t);
+    if (e.laser) drawBeam(ctx, e, e.laser, t);
+    if (e.lasers) for (const L of e.lasers) drawBeam(ctx, e, L, t);
   }
   if (!playerDrawn) drawPlayer(ctx, p, t);
   for (const h of G.helpers) drawHelper(ctx, h, t);
@@ -647,7 +663,8 @@ function drawGame(ctx) {
     if (!e.elite && e.hp >= e.maxHp) continue;
     const bw = e.elite ? 44 : Math.max(20, e.r * 1.9), bh = e.elite ? 5 : 3.5;
     const by = e.y - (e.z || 0) - e.r * (ART_TOP[e.def.art] || 1.25) - (e.elite ? 14 : 7);
-    hpBar(ctx, e.x - bw / 2, by, bw, bh, e.hp / e.maxHp, e.elite ? '#ffb321' : '#ff5a5f');
+    hpBar(ctx, e.x - bw / 2, by, bw, bh, e.hp / e.maxHp, e.elite ? '#ffb321' : e.type === 'crystal' ? '#9fe8ff' : '#ff5a5f');
+    if (e.elite && e.affList.length) drawAffixNames(ctx, e, by - 3);
   }
   if (!p.dead) {
     hpBar(ctx, p.x - 18, p.y - 34, 36, 5, p.hp / p.s.maxHp, '#5fd068');
@@ -720,8 +737,7 @@ function drawTelegraph(ctx, e, p, t) {
   }
 }
 
-function drawLaser(ctx, e, t) {
-  const L = e.laser;
+function drawBeam(ctx, e, L, t) {
   const x2 = e.x + Math.cos(L.ang) * L.len, y2 = e.y + Math.sin(L.ang) * L.len;
   ctx.lineCap = 'round';
   if (!L.on) {
@@ -734,6 +750,28 @@ function drawLaser(ctx, e, t) {
     line(ctx, e.x, e.y, x2, y2, rgba(e.pal.light, 0.8), 13 * wob);
     line(ctx, e.x, e.y, x2, y2, '#ffffff', 5);
   }
+}
+
+// A boss behind its crystal shield: a bubble round it, and a line from each crystal still standing.
+function drawBossShield(ctx, e, t) {
+  const y = e.y - (e.z || 0);
+  const r = e.r * 1.45 + Math.sin(t * 4) * 2;
+  circ(ctx, e.x, y, r);
+  ctx.fillStyle = 'rgba(160,220,255,0.16)';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = `rgba(190,235,255,${0.6 + Math.sin(t * 6) * 0.25})`;
+  ctx.stroke();
+}
+function drawShieldTethers(ctx, e, t) {
+  ctx.save();
+  ctx.setLineDash([10, 8]);
+  ctx.lineDashOffset = -t * 40;
+  for (const c of e.crystals) {
+    if (c.dead || c.spawnT > 0) continue;
+    line(ctx, c.x, c.y, e.x, e.y - (e.z || 0), 'rgba(190,235,255,0.55)', 2.5);
+  }
+  ctx.restore();
 }
 
 function drawZone(ctx, z, t) {

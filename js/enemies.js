@@ -3,7 +3,7 @@
 
 function roomScale() {
   const i = G.roomIdx - 1;
-  return { hp: 1 + DIFFICULTY.roomHp * i, dmg: 1 + DIFFICULTY.roomDmg * i };
+  return { hp: (1 + DIFFICULTY.roomHp * i) * TIER.hp ** G.tier, dmg: (1 + DIFFICULTY.roomDmg * i) * TIER.dmg ** G.tier };
 }
 
 // The kinds of enemy that can turn up in a room: more of the world's list the further in you are.
@@ -21,6 +21,7 @@ function spawnEnemy(type, x, y, o = {}) {
     state: 'idle', t: rand(0.3, 1), cd: rand(0.6, 1.6) + (o.delay || 0),
     look: Math.PI / 2, seed: rand(0, 100), flash: 0, z: 0, vx: 0, vy: 0, kbx: 0, kby: 0,
     moving: false, flying: !!def.flying, elite: !!def.elite, boss: false, squash: 0,
+    aff: {}, affList: [], haste: 1,
     status: { burn: 0, burnDps: 0, burnTick: 0, poison: 0, poisonDps: 0, poisonTick: 0, slow: 0, freeze: 0, curse: 0 },
     spawnT: o.spawnT !== undefined ? o.spawnT : 0.6, spawnMax: 0.6, dashes: 0,
   };
@@ -37,7 +38,7 @@ function enemyShot(e, ang, shotKey, speed, dmgMul = 1, o = {}) {
   G.eshots.push({
     x: e.x + Math.cos(ang) * (e.r * 0.6), y: e.y - (e.z || 0) + Math.sin(ang) * (e.r * 0.6),
     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: sd.r, kind: sd.kind, color: sd.color,
-    dmg: Math.round(e.dmg * dmgMul), slow: !!sd.slow, life: 7, seed: rand(0, 10),
+    dmg: Math.round(e.dmg * dmgMul), slow: !!sd.slow || !!e.aff.frost, life: 7, seed: rand(0, 10),
     accel: o.accel || 0, ghost: !!o.ghost,
   });
 }
@@ -379,6 +380,26 @@ const AI = {
     if (e.cd <= 0) { e.state = 'cast'; e.t = 0.6; }
   },
 
+  // boss shield crystal: just sits there and glows
+  crystal(e, dt, p) {
+    e.look = angleTo(e.x, e.y, p.x, p.y);
+  },
+
+  // the Lich's illusions: shoot, take no damage, fade after a while
+  decoy(e, dt, p) {
+    e.look = angleTo(e.x, e.y, p.x, p.y);
+    e.life -= dt;
+    e.cd -= dt;
+    if (e.cd <= 0) {
+      e.cd = 1.6;
+      spreadShot(e, e.look, 5, 0.7, e.def.shot, 160, 0.8);
+    }
+    if (e.life <= 0) {
+      FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 14, { min: 40, max: 140 });
+      e.dead = true;
+    }
+  },
+
   trail(e, dt, p) {
     walkTo(e, p.x, p.y, e.speed * e.slowK, dt);
     e.look = angleTo(e.x, e.y, p.x, p.y);
@@ -432,7 +453,8 @@ function updateEnemy(e, dt, p) {
   }
 
   if (e.boss) updateBoss(e, dt, p);
-  else AI[e.def.ai](e, dt * (e.state === 'dash' || e.state === 'air' ? 1 : e.slowK === 1 ? 1 : 0.8), p);
+  else AI[e.def.ai](e, dt * e.haste * (e.state === 'dash' || e.state === 'air' ? 1 : e.slowK === 1 ? 1 : 0.8), p);
+  if (e.affList.length) updateAffixes(e, dt, p);
   if (!e.flying && !e.boss) resolveTiles(e, true);
 }
 
@@ -440,19 +462,30 @@ function updateEnemy(e, dt, p) {
 
 function hurtEnemy(e, amount, o = {}) {
   if (e.dead || e.spawnT > 0) return;
+  if (e.decoy) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
   const p = G.player;
   let d = amount;
   if (e.status.curse > 0) d *= 1 + 0.2 * p.s.curse;
   d = Math.max(1, Math.round(d));
+  if (e.boss) {
+    d = bossTakeHit(e, d);
+    if (d <= 0) return;
+  }
   e.hp -= d;
   if (!o.dot) e.flash = 0.1;
   FX.text(e.x, e.y - e.r - 8 - (e.z || 0), fmt(d), o.crit ? '#ffd23f' : o.color || '#ffffff', o.crit ? 15 : o.small ? 9 : 11, { pop: o.crit ? 0.6 : 0, life: o.small ? 0.6 : 0.8 });
   if (e.hp <= 0) killEnemy(e);
+  else if (e.aff.blinking) blinkIfHurt(e);
 }
 
 // Shot from the hero (or a companion) hits an enemy.
 function shotHits(b, e) {
   const p = G.player, s = p.s;
+  if (e.shielded || shotBlocked(b, e)) {
+    FX.burst(b.x, b.y, ['#bfe6ff', '#ffffff'], 3, { type: 'spark', min: 40, max: 120 });
+    Sound.play('hit');
+    return;
+  }
   let d = b.dmg;
   const crit = Math.random() < s.crit;
   if (crit) d *= s.critMul;
@@ -464,7 +497,7 @@ function shotHits(b, e) {
   Sound.play(crit ? 'crit' : 'hit');
   FX.burst(b.x, b.y, [e.pal.main, '#ffffff'], crit ? 4 : 2, { type: 'spark', min: 60, max: 160 });
   if (b.main || b.splash) applyElements(e, b, d);
-  if (b.main && !e.boss) {
+  if (b.main && !e.boss && !e.anchored) {
     // a small push on every hit, a big one with Giant Shots
     const a = Math.atan2(b.vy, b.vx), k = e.elite ? 15 + 45 * s.knock : 35 + 140 * s.knock;
     e.kbx += Math.cos(a) * k;
@@ -526,14 +559,18 @@ function killEnemy(e) {
   Sound.play(e.boss || e.elite ? 'explode' : 'die');
   if (e.elite) FX.kick(6);
 
-  // loot
-  const coins = Math.round((e.boss ? e.def.coins : e.def.coins * G.world.coinMult) * (1 + s.gold) * rand(0.8, 1.2));
-  dropCoins(e.x, e.y, coins);
-  if (e.elite) {
-    dropPickup('heart', e.x, e.y, 0.3);
-    dropPickup('gem', e.x, e.y, 1 + G.worldIdx);
-  } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
-  if (e.boss) dropPickup('gem', e.x, e.y, e.def.gems);
+  if (e.aff.explosive) affixExplode(e);
+
+  // loot (summoned helpers and boss crystals give none)
+  if (!e.noLoot) {
+    const coins = Math.round((e.boss ? e.def.coins : e.def.coins * G.world.coinMult) * TIER.gold ** G.tier * (1 + s.gold) * rand(0.8, 1.2));
+    dropCoins(e.x, e.y, coins);
+    if (e.elite) {
+      dropPickup('heart', e.x, e.y, 0.3);
+      dropPickup('gem', e.x, e.y, 1 + G.worldIdx + Math.floor(G.tier / 2));
+    } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
+    if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
+  }
 
   if (s.vamp) healPlayer(p.s.maxHp * s.vamp);
   if (e.status.curse > 0 && s.curse) {
@@ -583,7 +620,7 @@ function separateEnemies() {
       const d2 = dx * dx + dy * dy;
       if (d2 >= min * min || d2 < 1e-4) continue;
       const d = Math.sqrt(d2), push = (min - d) / 2;
-      const wa = a.boss ? 0 : b.boss ? 1 : 0.5;
+      const wa = a.boss || a.anchored ? 0 : b.boss || b.anchored ? 1 : 0.5;
       a.x -= (dx / d) * push * 2 * wa;
       a.y -= (dy / d) * push * 2 * wa;
       b.x += (dx / d) * push * 2 * (1 - wa);

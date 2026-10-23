@@ -22,6 +22,14 @@ const DIFFICULTY = {
   maxEnemies: 13,
 };
 
+// Difficulty tiers: a world cleared on one tier can be played again on the next.
+// Tier n multiplies enemy HP, enemy damage and gold by these to the power of n.
+const TIER = { hp: 1.6, dmg: 1.3, gold: 1.45 };
+const TIER_NAMES = ['Normal', 'Hard', 'Nightmare', 'Hell'];
+const tierName = n => (n < TIER_NAMES.length ? TIER_NAMES[n] : `Torment ${roman(n - TIER_NAMES.length + 1)}`);
+// How many affixes elites get, and the share of normal enemies that get one (affixes.js).
+const tierAffixes = n => ({ elite: n >= 5 ? 3 : n >= 3 ? 2 : n >= 1 ? 1 : 0, normal: n >= 4 ? 0.25 : n >= 2 ? 0.1 : 0 });
+
 const RARITY = {
   common:    { name: 'Common',    color: '#a9b6cc', weight: 62, rank: 0 },
   rare:      { name: 'Rare',      color: '#47a6ff', weight: 27, rank: 1 },
@@ -277,26 +285,35 @@ Object.assign(ENEMIES, {
     name: 'Elder Yeti', r: 26, hpMult: 8, jump: { every: 2.4, ring: 16, radius: 60 }, jumps: 2,
     pal: { main: '#dfe9f7', dark: '#9fb3cf', light: '#4f86d9' },
   }),
+  // Shield crystals a boss raises at 60% and 25% HP (bosses.js). HP is set from the boss.
+  crystal: {
+    name: 'Shield Crystal', art: 'crystal', ai: 'crystal', hp: 1, dmg: 0, speed: 0, r: 13, cost: 0, coins: 0, harmless: true,
+    pal: { main: '#9fe8ff', dark: '#4fa6d6', light: '#ffffff' },
+  },
 });
 
-// Bosses have fixed stats (not scaled by world) and a list of attack moves (bosses.js).
+// Bosses have fixed stats (not scaled by world, only by tier) and a list of attack moves (bosses.js).
+// sig = the signature move they add in the last phase.
 const BOSSES = {
   treant: {
-    name: 'Elder Treant', art: 'treant', hp: 6800, dmg: 75, speed: 16, r: 34, coins: 120, gems: 3,
+    name: 'Elder Treant', art: 'treant', hp: 20000, dmg: 200, speed: 16, r: 34, coins: 120, gems: 3,
     pal: { main: '#8a5a36', dark: '#5a3a22', light: '#5fbf4a' },
-    moves: ['spiral', 'roots', 'fan', 'summon', 'ring'],
+    moves: ['spiral', 'roots', 'fan', 'summon', 'ring'], sig: 'rootfield',
     shot: 'leaf', summon: ['slime', 'sporecap'],
   },
   magmaKing: {
-    name: 'Magma King', art: 'magmaKing', hp: 17000, dmg: 105, speed: 20, r: 34, coins: 220, gems: 5,
+    name: 'Magma King', art: 'magmaKing', hp: 35000, dmg: 160, speed: 20, r: 34, coins: 220, gems: 5,
     pal: { main: '#5a3a36', dark: '#2e1c1a', light: '#ff9a2a' },
-    moves: ['slam', 'meteors', 'ring', 'charge', 'summon', 'spiral'],
+    moves: ['slam', 'meteors', 'ring', 'charge', 'summon', 'spiral'], sig: 'eruption',
     shot: 'fire', summon: ['imp', 'magmaSlug'],
   },
   lich: {
-    name: 'The Lich', art: 'lich', hp: 26000, dmg: 135, speed: 24, r: 28, coins: 350, gems: 8,
+    name: 'The Lich', art: 'lich', hp: 32000, dmg: 250, speed: 24, r: 28, coins: 350, gems: 8,
     pal: { main: '#3d3260', dark: '#211a3a', light: '#7ff3ff' },
-    moves: ['spiral', 'laser', 'teleport', 'summon', 'ring', 'fan'],
+    moves: ['spiral', 'laser', 'teleport', 'summon', 'ring', 'fan'], sig: 'mirror',
     shot: 'ice', altShot: 'bone', summon: ['skeleton', 'ghost'], flying: true,
   },
 };
+// Phase lines: below these shares of HP the boss raises a crystal shield and gets angrier.
+const BOSS_PHASES = [0.6, 0.25];
+const BOSS_FURY_AT = 120;   // seconds into the fight before the boss slowly speeds up

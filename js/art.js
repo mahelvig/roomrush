@@ -830,6 +830,22 @@ const ENEMY_ART = {
       if (Math.sin(a) >= 0) drawSkull(ctx, x, y, 5, P.light);
     }
   },
+
+  // a boss's shield crystal: a floating gem on a little stone base
+  crystal(ctx, e, t) {
+    const P = e.pal;
+    ell(ctx, 0, 9, 9, 3.5); fs(ctx, '#6a6478', 1.6);
+    const hover = Math.sin(t * 3 + e.seed) * 2 - 6;
+    ctx.translate(0, hover);
+    glow(ctx, 0, 0, 30, P.dark, 0.55 + Math.sin(t * 5 + e.seed) * 0.15);
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(8, -4); ctx.lineTo(6, 9); ctx.lineTo(-6, 9); ctx.lineTo(-8, -4);
+    ctx.closePath();
+    fs(ctx, P.main, 2);
+    ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(2, 9); ctx.lineTo(-6, 9); ctx.lineTo(-8, -4); ctx.closePath();
+    ctx.fillStyle = col(P.dark); ctx.globalAlpha *= 0.45; ctx.fill(); ctx.globalAlpha /= 0.45;
+    shine(ctx, 3, -5, 1.6, 4, 0.8, 0.3);
+  },
 };
 
 function drawSkull(ctx, x, y, r, eyeColor, angry) {
@@ -848,7 +864,7 @@ function drawSkull(ctx, x, y, r, eyeColor, angry) {
 const ART_BASE = {
   slime: 12, bat: 10, mushroom: 13, goblin: 12, boar: 14, stump: 15, imp: 10, slug: 13, scorpion: 12,
   salamander: 12, golem: 16, skeleton: 11, ghost: 12, wisp: 11, mage: 12, yeti: 15,
-  treant: 24, magmaKing: 28, lich: 20,
+  treant: 24, magmaKing: 28, lich: 20, crystal: 13,
 };
 
 function drawEnemy(ctx, e, t) {
