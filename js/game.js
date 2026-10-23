@@ -31,6 +31,7 @@ function startRun(worldIdx, resume, tier = 0, depth = 0) {
   syncHelpers(G.player);
   if (resume && resume.hp) G.player.hp = clamp(resume.hp, 1, G.player.s.maxHp);
   if (!resume) { save.stats.runs++; writeSave(); }
+  refreshQuests();
   G.time = 0;
   UI.hide();
   UI.hud(true);
@@ -59,7 +60,7 @@ function enterRoom(idx) {
   G.enemies = []; G.shots = []; G.eshots = []; G.pickups = []; G.zones = []; G.warns = []; G.strikes = []; G.abilityFx = [];
   FX.clear();
   const p = G.player;
-  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0 });
+  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0 });
   p.volleys.length = 0;
   for (const h of G.helpers) { h.x = p.x; h.y = p.y; }
   Object.assign(G, { cleared: false, clearT: 0, perkShown: false, doorOpen: false, doorT: 0, boss: null, bossDead: false, bossDeadT: 0, winShown: false });
@@ -150,7 +151,10 @@ function onRoomCleared() {
     FX.ring(p.x, p.y, 26, '#ffe58a', 0.5, 4);
     FX.text(p.x, p.y - 44, 'Shield back!', '#ffe58a', 11, { life: 1.2 });
   }
-  if (!save.seenHint) { save.seenHint = true; writeSave(); }
+  save.seenHint = true;
+  track('room');
+  if (!p.roomHits) track('nohit');
+  writeSave();
 }
 
 function showPerkChoice(reason) {
@@ -166,6 +170,7 @@ function showPerkChoice(reason) {
 function choosePerk(i) {
   const perk = G.choices[i];
   if (!perk || G.state !== 'perk') return;
+  if (RARITY[perk.rarity].rank >= 2) track('epic');
   const p = G.player;
   p.perks[perk.id] = (p.perks[perk.id] || 0) + 1;
   refreshStats(p);
@@ -193,9 +198,18 @@ function finishPerk() {
   Sound.play('door');
 }
 
+// Free rerolls first (Second Thoughts); after that a reroll costs gems, doubling each time in a run.
+const gemRerollCost = () => 5 * 2 ** (G.run.gemRerolls || 0);
 function rerollPerks() {
-  if (G.state !== 'perk' || G.run.rerolls <= 0) return;
-  G.run.rerolls--;
+  if (G.state !== 'perk') return;
+  if (G.run.rerolls > 0) G.run.rerolls--;
+  else {
+    const cost = gemRerollCost();
+    if (save.gems < cost) return;
+    save.gems -= cost;
+    G.run.gemRerolls = (G.run.gemRerolls || 0) + 1;
+    writeSave();
+  }
   const minRank = G.perkReason === 'room' && G.roomType === 'elite' ? 1 : 0;
   G.choices = rollPerks(G.player, 2, minRank);
   UI.perks(G.choices, G.perkReason);
@@ -227,7 +241,6 @@ function endRun(won) {
   const run = G.run;
   save.gold += run.gold;
   save.gems += run.gems;
-  save.stats.kills += run.kills || 0;
   if (!won) save.stats.deaths++;
   clearRun();
   writeSave();
@@ -251,10 +264,12 @@ function victory() {
   const w = G.world;
   const first = !save.cleared[w.id];
   const newTier = G.tier > (save.tiers[w.id] ?? -1);   // first clear on this tier
-  const bonus = first ? 10 : newTier ? 10 + 5 * G.tier : 3;
+  const bonus = first ? 10 : newTier ? 10 + 5 * G.tier : 1;
   G.run.gems += bonus;
   save.cleared[w.id] = (save.cleared[w.id] || 0) + 1;
   if (newTier) save.tiers[w.id] = G.tier;
+  if (!save.stats.heroWins.includes(G.player.hero.id)) save.stats.heroWins.push(G.player.hero.id);
+  track('win');
   let unlockedWorld = null;
   if (G.worldIdx + 2 > save.unlocked && G.worldIdx + 1 < WORLDS.length) {
     save.unlocked = G.worldIdx + 2;
@@ -558,6 +573,7 @@ function updatePickups(dt, p) {
       G.pickups.splice(i, 1);
       if (k.kind === 'coin') {
         G.run.gold += k.value;
+        track('gold', k.value);
         Sound.play('coin');
         FX.burst(k.x, k.y, '#ffcf3f', 2, { min: 20, max: 60 });
         UI.updateGold();

@@ -157,6 +157,11 @@ const UI = {
     b.innerHTML = `<div class="b-title">${title}</div>${sub ? `<div class="b-sub">${sub}</div>` : ''}`;
     b.className = `show ${cls || ''}`;
   },
+  // A short golden message (quest done, achievement reached).
+  toast(text) {
+    this.hint(text);
+    this.hintEl.classList.add('gold');
+  },
   hint(text) {
     const h = this.hintEl;
     h.textContent = text;
@@ -168,6 +173,8 @@ const UI = {
   // ---------- screens ----------
   title() {
     G.state = 'menu';
+    refreshQuests();
+    const waiting = rewardsWaiting();
     Sound.playMusic('menu');
     const hero = HERO_BY_ID[save.hero];
     const run = loadRun();
@@ -199,6 +206,7 @@ const UI = {
           <button class="btn blue" data-a="heroes">Heroes</button>
           <button class="btn purple" data-a="upgrades">Upgrades</button>
         </div>
+        <button class="btn gold quests-btn" data-a="quests">Quests${waiting ? `<i class="badge">${waiting}</i>` : ''}</button>
       </div>
       ${ios ? '<p class="tip">Tip: tap Share and “Add to Home Screen” to play in full screen.</p>' : ''}
     `, 'title');
@@ -254,6 +262,61 @@ const UI = {
   pickedDepth() {
     const starts = depthStarts();
     return starts.includes(save.depthPick) ? save.depthPick : starts[starts.length - 1];
+  },
+
+  // Quests and achievements: three tabs.
+  quests(tab = this.questTab || 'daily') {
+    this.questTab = tab;
+    refreshQuests();
+    const Q = save.quests;
+    const bar = (have, need) => `<div class="qbar"><div style="width:${Math.min(100, (have / need) * 100)}%"></div><span>${fmt(Math.min(have, need))}/${fmt(need)}</span></div>`;
+    const tabs = `<div class="tabs">
+      ${['daily', 'weekly', 'achievements'].map(t => `<button class="tab ${t === tab ? 'on' : ''}" data-a="questTab" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}
+    </div>`;
+    let body;
+    if (tab === 'achievements') {
+      body = ACHIEVEMENTS.map(a => {
+        const L = achClaimed(a), done = L >= a.goals.length, goal = a.goals[Math.min(L, a.goals.length - 1)];
+        const medals = a.goals.map((_, i) => `<i class="medal m${i} ${i < L ? 'on' : ''}"></i>`).join('');
+        return `
+          <div class="quest panel">
+            <div class="q-info">
+              <b>${a.name} <span class="medals">${medals}</span></b>
+              <span>${done ? 'All done!' : a.text(goal)}</span>
+              ${done ? '' : bar(Math.max(0, a.stat()), goal)}
+            </div>
+            ${achReady(a) ? `<button class="btn small gold" data-a="claimAch" data-id="${a.id}">Claim ${gemTag(ACH_GEMS[L])}</button>`
+              : done ? '' : `<span class="q-reward">${ACH_TIERS[L]} ${gemTag(ACH_GEMS[L])}</span>`}
+          </div>`;
+      }).join('');
+    } else {
+      const weekly = tab === 'weekly', list = weekly ? Q.weekly : Q.daily;
+      const chestOpen = weekly ? Q.weeklyChest : Q.dailyChest, allDone = list.length && list.every(q => q.done);
+      const rows = list.map((q, i) => `
+        <div class="quest panel ${q.claimed ? 'dim' : ''}">
+          <div class="q-info">
+            <b>${questText(q, weekly)}</b>
+            ${bar(q.have, q.target)}
+          </div>
+          ${q.claimed ? '<span class="q-reward">Done</span>'
+            : q.done ? `<button class="btn small gold" data-a="claimQuest" data-w="${weekly ? 1 : 0}" data-i="${i}">Claim ${coinTag(q.gold)}</button>`
+            : `<div class="q-side"><span class="q-reward">${coinTag(q.gold)}</span>${!weekly && !Q.swapped ? `<button class="link" data-a="swapQuest" data-i="${i}">Swap</button>` : ''}</div>`}
+        </div>`).join('');
+      const chest = `
+        <div class="quest panel chest">
+          <div class="q-info">
+            <b>${weekly ? 'Weekly' : 'Daily'} chest</b>
+            <span>${chestOpen ? 'Opened. Come back for new quests!' : `Finish all ${list.length} quests`}</span>
+          </div>
+          ${chestOpen ? '' : `<button class="btn small gold" data-a="claimChest" data-w="${weekly ? 1 : 0}" ${allDone ? '' : 'disabled'}>Open ${gemTag(weekly ? WEEKLY_CHEST : DAILY_CHEST)}</button>`}
+        </div>`;
+      body = `${rows}${chest}<p class="sub">New quests in ${untilNext(weekly)}${!weekly && !Q.swapped ? ' · you can swap one quest today' : ''}</p>`;
+    }
+    this.open(`
+      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Quests</h2><div class="pill">${gemTag(save.gems)}</div></header>
+      ${tabs}
+      <div class="list">${body}</div>
+    `, 'quests');
   },
 
   // The hero's active ability on its card, with the gem upgrade.
@@ -418,7 +481,8 @@ const UI = {
     this.open(`
       <div class="perk-head"><h2>Choose a perk</h2><p class="sub">${title}</p></div>
       <div class="cards">${cards}</div>
-      ${G.run.rerolls > 0 ? `<button class="btn small blue" data-a="reroll">Reroll (${G.run.rerolls} left)</button>` : ''}
+      ${G.run.rerolls > 0 ? `<button class="btn small blue" data-a="reroll">Reroll (${G.run.rerolls} left)</button>`
+        : `<button class="btn small blue" data-a="reroll" ${save.gems < gemRerollCost() ? 'disabled' : ''}>Reroll ${gemTag(gemRerollCost())}</button>`}
       ${owned.length ? `<div class="owned">${owned.map(id => `<span class="mini r-${PERK_BY_ID[id].rarity}"><canvas class="icon" data-icon="${PERK_BY_ID[id].icon}"></canvas>${p.perks[id] > 1 ? `<em>${p.perks[id]}</em>` : ''}</span>`).join('')}</div>` : ''}
     `, 'perk');
   },
@@ -479,7 +543,7 @@ const UI = {
       <div class="panel result win">
         <div class="trophy"><canvas class="icon" data-icon="star"></canvas></div>
         <h2>World cleared!</h2>
-        <p class="sub">${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''}${sum.bonus > 3 ? ` · first clear bonus +${sum.bonus} gems` : ''}</p>
+        <p class="sub">${sum.world.name}${sum.tier ? ` · ${tierName(sum.tier)}` : ''}${sum.bonus > 1 ? ` · first clear bonus +${sum.bonus} gems` : ''}</p>
         <div class="facts">
           <span><b>${coinTag(sum.gold)}</b>Gold</span>
           <span><b>${gemTag(sum.gems)}</b>Gems</span>
@@ -531,6 +595,12 @@ const ACTIONS = {
     if (row) row.outerHTML = UI.depthRow();
   },
   upgradeTab: d => UI.upgrades(d.tab),
+  quests: () => UI.quests(),
+  questTab: d => UI.quests(d.tab),
+  claimQuest: d => { claimQuest(d.w === '1', +d.i); Sound.play('coin'); UI.quests(); },
+  claimChest: d => { claimChest(d.w === '1'); Sound.play('gem'); UI.quests(); },
+  swapQuest: d => { swapQuest(+d.i); UI.quests(); },
+  claimAch: d => { claimAchievement(d.id); Sound.play('gem'); const y = UI.root.scrollTop; UI.quests(); UI.root.scrollTop = y; },
   buyMastery: d => {
     const L = masteryLevel(d.id), cost = masteryCost(L);
     if (save.gold < cost) return;

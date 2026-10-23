@@ -17,6 +17,7 @@ function useAbility() {
   const p = G.player;
   ABILITY_USE[p.hero.ability](p, abilityLevel(p.hero));
   p.abilityCd = abilityCooldown(p.hero);
+  track('ability');
   return true;
 }
 

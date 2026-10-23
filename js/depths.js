@@ -56,6 +56,7 @@ function depthCleared() {
     sub = `Milestone bonus +${gems} gems`;
   }
   save.depthCleared = Math.max(save.depthCleared || 0, d);
+  track('depth');
   writeSave();
   UI.banner(`Depth ${d} cleared!`, sub, 'clear');
 }

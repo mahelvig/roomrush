@@ -556,6 +556,10 @@ function killEnemy(e) {
   e.dead = true;
   const p = G.player, s = p.s, run = G.run;
   run.kills = (run.kills || 0) + 1;
+  if (!e.def.harmless) {
+    track('kill');
+    if (e.elite) track('elite');
+  }
   FX.burst(e.x, e.y - (e.z || 0), [e.pal.main, e.pal.light, '#ffffff'], e.boss ? 50 : e.elite ? 26 : 14, { min: 60, max: e.boss ? 320 : 200, life: 0.7 });
   FX.smoke(e.x, e.y, 'rgba(255,255,255,0.55)', e.elite || e.boss ? 8 : 4, e.r * 0.6);
   Sound.play(e.boss || e.elite ? 'explode' : 'die');
@@ -569,7 +573,8 @@ function killEnemy(e) {
     dropCoins(e.x, e.y, coins);
     if (e.elite) {
       dropPickup('heart', e.x, e.y, 0.3);
-      if (!e.noGems) dropPickup('gem', e.x, e.y, 1 + G.worldIdx + Math.min(3, Math.floor(G.tier / 2)));
+      // a chance of one gem, better on higher tiers (gem budget: quests.js)
+      if (!e.noGems && Math.random() < Math.min(0.5, 0.15 + 0.05 * G.tier)) dropPickup('gem', e.x, e.y, 1);
     } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
     if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
   }

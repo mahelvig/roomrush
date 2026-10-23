@@ -24,7 +24,10 @@ function defaultSave() {
     depthPick: 0,          // depth picked on the world screen (0 = the deepest start)
     seenAbilityHint: false,
     settings: { sfx: true, music: true, vibrate: true },
-    stats: { runs: 0, kills: 0, bosses: 0, deaths: 0 },
+    stats: { runs: 0, kills: 0, bosses: 0, deaths: 0, elites: 0, rooms: 0, roomsNoHit: 0, bossNoHit: 0, goldTotal: 0, abilityUses: 0, heroWins: [] },
+    quests: { day: '', daily: [], swapped: false, dailyChest: false, week: '', weekly: [], weeklyChest: false },
+    achieved: {},          // achievement id -> levels claimed (quests.js)
+    achSeen: {},           // achievement id -> levels already announced
     seenHint: false,
   };
 }

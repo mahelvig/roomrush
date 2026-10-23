@@ -326,19 +326,19 @@ Object.assign(ENEMIES, {
 // sig = the signature move they add in the last phase.
 const BOSSES = {
   treant: {
-    name: 'Elder Treant', art: 'treant', hp: 20000, dmg: 200, speed: 16, r: 34, coins: 120, gems: 3,
+    name: 'Elder Treant', art: 'treant', hp: 20000, dmg: 200, speed: 16, r: 34, coins: 120, gems: 1,
     pal: { main: '#8a5a36', dark: '#5a3a22', light: '#5fbf4a' },
     moves: ['spiral', 'roots', 'fan', 'summon', 'ring'], sig: 'rootfield',
     shot: 'leaf', summon: ['slime', 'sporecap'],
   },
   magmaKing: {
-    name: 'Magma King', art: 'magmaKing', hp: 35000, dmg: 160, speed: 20, r: 34, coins: 220, gems: 5,
+    name: 'Magma King', art: 'magmaKing', hp: 35000, dmg: 160, speed: 20, r: 34, coins: 220, gems: 2,
     pal: { main: '#5a3a36', dark: '#2e1c1a', light: '#ff9a2a' },
     moves: ['slam', 'meteors', 'ring', 'charge', 'summon', 'spiral'], sig: 'eruption',
     shot: 'fire', summon: ['imp', 'magmaSlug'],
   },
   lich: {
-    name: 'The Lich', art: 'lich', hp: 32000, dmg: 250, speed: 24, r: 28, coins: 350, gems: 8,
+    name: 'The Lich', art: 'lich', hp: 32000, dmg: 250, speed: 24, r: 28, coins: 350, gems: 3,
     pal: { main: '#3d3260', dark: '#211a3a', light: '#7ff3ff' },
     moves: ['spiral', 'laser', 'teleport', 'summon', 'ring', 'fan'], sig: 'mirror',
     shot: 'ice', altShot: 'bone', summon: ['skeleton', 'ghost'], flying: true,

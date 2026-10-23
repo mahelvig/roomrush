@@ -403,6 +403,43 @@ header h2 { flex: 1; font-size: 1.7em; }
 
 .world-card.depths { background: linear-gradient(#3b2370, #24154a); }
 
+/* quests */
+.quests-btn { position: relative; }
+.badge {
+  position: absolute;
+  top: -.45em;
+  right: -.3em;
+  min-width: 1.35em;
+  height: 1.35em;
+  padding: 0 .3em;
+  border-radius: .7em;
+  border: .12em solid var(--line);
+  background: #ff4f6d;
+  color: #fff;
+  font-style: normal;
+  font-size: .8em;
+  line-height: 1.15em;
+  text-shadow: none;
+}
+.quest { display: flex; align-items: center; gap: .6em; padding: .65em .75em; }
+.quest.dim { opacity: .55; }
+.quest.chest { background: linear-gradient(#5a3f12, #3e2a0c); }
+.q-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3em; }
+.q-info b { font-family: var(--title); font-weight: normal; font-size: 1.05em; }
+.q-info > span { color: var(--muted); font-size: .85em; }
+.q-side { display: flex; flex-direction: column; align-items: flex-end; gap: .3em; }
+.q-reward { color: #ffe6a8; font-size: .9em; white-space: nowrap; }
+.link { background: none; border: none; color: #8fc8ff; font-size: .85em; text-decoration: underline; padding: 0; }
+.qbar { position: relative; height: 1.05em; border-radius: .6em; background: rgba(10, 6, 24, .7); border: .12em solid var(--line); overflow: hidden; }
+.qbar div { height: 100%; background: linear-gradient(#86e886, #3cae4c); }
+.qbar span { position: absolute; inset: 0; text-align: center; font-size: .72em; line-height: 1.3em; color: #fff; text-shadow: 0 .08em 0 var(--line); }
+.medals { display: inline-flex; gap: .2em; vertical-align: middle; margin-left: .25em; }
+.medal { width: .7em; height: .7em; border-radius: 50%; border: .1em solid var(--line); background: rgba(255, 255, 255, .15); }
+.medal.on.m0 { background: #d98b4a; }
+.medal.on.m1 { background: #d6dde8; }
+.medal.on.m2 { background: #ffcf3f; }
+#hint.gold { border-color: #ffcf3f; color: #ffe6a8; }
+
 /* tabs on the upgrade screen */
 .tabs { display: flex; gap: .5em; }
 .tab {

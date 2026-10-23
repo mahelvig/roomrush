@@ -203,6 +203,7 @@ function hurtPlayer(amount, o = {}) {
   }
   const d = Math.max(1, Math.round(amount * (1 - p.s.armor)));
   p.hp -= d;
+  p.roomHits = (p.roomHits || 0) + 1;
   G.run.damage = (G.run.damage || 0) + d;
   p.flash = 0.2;
   p.invuln = 0.7;
