@@ -409,6 +409,7 @@ function updateEnemyShots(dt, p) {
   const S = G.eshots;
   for (let i = S.length - 1; i >= 0; i--) {
     const b = S[i];
+    if (!b) continue; // a revive can clear the list while we loop
     b.life -= dt;
     if (b.accel) {
       const k = 1 + b.accel * dt;
@@ -424,7 +425,7 @@ function updateEnemyShots(dt, p) {
     const rr = b.r + p.r - 3;
     if (dist2(b.x, b.y, p.x, p.y) < rr * rr) {
       if (hurtPlayer(b.dmg) && b.slow) p.slowT = 1.5;
-      S.splice(i, 1);
+      if (S[i] === b) S.splice(i, 1);
     }
   }
 }
