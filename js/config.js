@@ -12,6 +12,16 @@ const ROOMS_PER_WORLD = 20;
 
 const TILE = { FLOOR: 0, WALL: 1, WATER: 2, LAVA: 3, ICE: 4, SPIKES: 5 };
 
+// How fast rooms get harder within a world (per room after the first).
+const DIFFICULTY = {
+  roomHp: 0.1,         // enemy HP +10% per room
+  roomDmg: 0.05,       // enemy damage +5% per room
+  roomShotSpeed: 0.012, // enemy shots +1.2% faster per room
+  budget: 3.5,         // enemy "points" in room 1
+  budgetPerRoom: 0.36, // extra points per room
+  maxEnemies: 13,
+};
+
 const RARITY = {
   common:    { name: 'Common',    color: '#a9b6cc', weight: 62, rank: 0 },
   rare:      { name: 'Rare',      color: '#47a6ff', weight: 27, rank: 1 },
@@ -271,13 +281,13 @@ Object.assign(ENEMIES, {
 // Bosses have fixed stats (not scaled by world) and a list of attack moves (bosses.js).
 const BOSSES = {
   treant: {
-    name: 'Elder Treant', art: 'treant', hp: 5200, dmg: 75, speed: 16, r: 34, coins: 120, gems: 3,
+    name: 'Elder Treant', art: 'treant', hp: 6800, dmg: 75, speed: 16, r: 34, coins: 120, gems: 3,
     pal: { main: '#8a5a36', dark: '#5a3a22', light: '#5fbf4a' },
     moves: ['spiral', 'roots', 'fan', 'summon', 'ring'],
     shot: 'leaf', summon: ['slime', 'sporecap'],
   },
   magmaKing: {
-    name: 'Magma King', art: 'magmaKing', hp: 15000, dmg: 105, speed: 20, r: 34, coins: 220, gems: 5,
+    name: 'Magma King', art: 'magmaKing', hp: 17000, dmg: 105, speed: 20, r: 34, coins: 220, gems: 5,
     pal: { main: '#5a3a36', dark: '#2e1c1a', light: '#ff9a2a' },
     moves: ['slam', 'meteors', 'ring', 'charge', 'summon', 'spiral'],
     shot: 'fire', summon: ['imp', 'magmaSlug'],

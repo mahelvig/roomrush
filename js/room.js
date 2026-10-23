@@ -244,6 +244,16 @@ function lineClear(ax, ay, bx, by, walk) {
   return true;
 }
 
+// Like lineClear for walking, but checks a band as wide as the walker so it does not
+// try to squeeze through the gap between two diagonal blocks.
+function pathClear(ax, ay, bx, by, r) {
+  const d = dist(ax, ay, bx, by) || 1;
+  const nx = (-(by - ay) / d) * r * 0.9, ny = ((bx - ax) / d) * r * 0.9;
+  return lineClear(ax, ay, bx, by, true) &&
+    lineClear(ax + nx, ay + ny, bx + nx, by + ny, true) &&
+    lineClear(ax - nx, ay - ny, bx - nx, by - ny, true);
+}
+
 // Distance to the first wall along a direction (for charge telegraphs and lasers).
 function rayLength(x, y, ang, max = 800) {
   const dx = Math.cos(ang), dy = Math.sin(ang);
@@ -284,7 +294,7 @@ const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, 
 
 // Direction a ground enemy should walk to reach the player.
 function pathDir(e, tx, ty) {
-  if (lineClear(e.x, e.y, tx, ty, true)) return angleTo(e.x, e.y, tx, ty);
+  if (pathClear(e.x, e.y, tx, ty, e.r)) return angleTo(e.x, e.y, tx, ty);
   const c = colOf(e.x), r = rowOf(e.y);
   if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return angleTo(e.x, e.y, tx, ty);
   const here = room.flow[tileIndex(c, r)];

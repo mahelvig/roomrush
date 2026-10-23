@@ -73,6 +73,7 @@ function enterRoom(idx) {
 
 function beginRoom() {
   G.state = 'play';
+  G.perkShown = false;
   spawnRoomEnemies();
   const w = G.world;
   if (G.roomType === 'boss') {
@@ -92,14 +93,14 @@ function spawnRoomEnemies() {
   const w = G.world, idx = G.roomIdx, p = G.player;
   if (G.roomType === 'boss') { spawnBoss(w.boss); return; }
   const types = w.enemies.slice(0, Math.min(w.enemies.length, 2 + Math.floor((idx - 1) / 3)));
-  let budget = 3 + idx * 0.3 + G.worldIdx * 0.4;
+  let budget = DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4;
   let n = 0;
   if (G.roomType === 'elite') {
     const key = w.elites[clamp(idx / 5 - 1, 0, w.elites.length - 1)];
     spawnEnemy(key, DOOR_X, ROOM_Y + 120, { spawnT: 0.9 });
     budget = 1.2 + idx * 0.1;
   }
-  while (budget > 0.4 && n < 12) {
+  while (budget > 0.4 && n < DIFFICULTY.maxEnemies) {
     const type = pick(types), def = ENEMIES[type];
     const spot = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 190, maxRow: ROWS - 6, ground: !def.flying });
     spawnEnemy(type, spot.x, spot.y, { spawnT: 0.5 + n * 0.07 });

@@ -3,7 +3,7 @@
 
 function roomScale() {
   const i = G.roomIdx - 1;
-  return { hp: 1 + 0.08 * i, dmg: 1 + 0.035 * i };
+  return { hp: 1 + DIFFICULTY.roomHp * i, dmg: 1 + DIFFICULTY.roomDmg * i };
 }
 
 function spawnEnemy(type, x, y, o = {}) {
@@ -28,7 +28,7 @@ function spawnEnemy(type, x, y, o = {}) {
 
 function enemyShot(e, ang, shotKey, speed, dmgMul = 1, o = {}) {
   const sd = SHOTS[shotKey] || SHOTS.orb;
-  const sp = speed * G.player.s.bulletSlow;
+  const sp = speed * G.player.s.bulletSlow * (1 + DIFFICULTY.roomShotSpeed * (G.roomIdx - 1));
   G.eshots.push({
     x: e.x + Math.cos(ang) * (e.r * 0.6), y: e.y - (e.z || 0) + Math.sin(ang) * (e.r * 0.6),
     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: sd.r, kind: sd.kind, color: sd.color,
