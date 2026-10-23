@@ -3,7 +3,7 @@
 
 const G = {
   state: 'menu', world: WORLDS[0], worldIdx: 0, tier: 0, run: null, player: null,
-  enemies: [], shots: [], eshots: [], pickups: [], helpers: [], zones: [], warns: [], strikes: [],
+  enemies: [], shots: [], eshots: [], pickups: [], helpers: [], zones: [], warns: [], strikes: [], abilityFx: [],
   time: 0, roomIdx: 1, roomType: 'normal', cleared: false, clearT: 0, perkShown: false,
   doorOpen: false, doorT: 0, camY: 0, viewH: 640, hudH: 50, nextId: 0, scale: 1, dpr: 1,
   boss: null, bossDead: false, bossDeadT: 0, fade: 0, fadeDir: 0, fadeCb: null, choices: [], perkReason: null,
@@ -48,7 +48,7 @@ function enterRoom(idx) {
     if (t === TILE.LAVA || t === TILE.WATER || t === TILE.SPIKES) room.fxTiles.push([c, r, t]);
   }
   rebuildRoomBG();
-  G.enemies = []; G.shots = []; G.eshots = []; G.pickups = []; G.zones = []; G.warns = []; G.strikes = [];
+  G.enemies = []; G.shots = []; G.eshots = []; G.pickups = []; G.zones = []; G.warns = []; G.strikes = []; G.abilityFx = [];
   FX.clear();
   const p = G.player;
   Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0 });
@@ -88,6 +88,12 @@ function beginRoom() {
     UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name + (G.tier ? ` · ${tierName(G.tier)}` : '') : '', '');
   }
   if (G.roomIdx === 1 && !save.seenHint) UI.hint(isTouch ? 'Drag anywhere to move. Stand still to shoot faster!' : 'Move with WASD or the arrow keys. Stand still to shoot faster!');
+  else if (!save.seenAbilityHint) {
+    save.seenAbilityHint = true;
+    writeSave();
+    const a = ABILITIES[G.player.hero.ability];
+    UI.hint(isTouch ? `New: tap the round button to use ${a.name}!` : `New: press Space to use ${a.name}!`);
+  }
 }
 
 function spawnRoomEnemies() {
@@ -293,6 +299,7 @@ function updateGame(dt) {
   const p = G.player;
   updatePlayer(p, dt);
   if (G.state !== 'play') return;
+  updateAbilities(dt, p);
   updateHelpers(p, dt);
   for (const e of G.enemies) updateEnemy(e, dt, p);
   separateEnemies();
@@ -322,6 +329,7 @@ function updateGame(dt) {
   }
   if (G.doorOpen) G.doorT = Math.min(1, G.doorT + dt * 1.5);
   updateCamera(dt);
+  UI.abilityTick();
 }
 
 function contactDamage(p) {
@@ -572,6 +580,7 @@ function drawGame(ctx) {
 
   // ground layer: puddles, warnings
   for (const z of G.zones) drawZone(ctx, z, t);
+  drawAbilityGround(ctx, t);
   for (const wn of G.warns) {
     const k = 1 - wn.t / wn.max;
     ctx.beginPath(); ctx.arc(wn.x, wn.y, wn.r, 0, TAU);
@@ -651,6 +660,7 @@ function drawGame(ctx) {
   }
   if (!playerDrawn) drawPlayer(ctx, p, t);
   for (const h of G.helpers) drawHelper(ctx, h, t);
+  drawAbilityFx(ctx, t);
 
   for (const b of G.shots) drawPlayerShot(ctx, b, t);
   for (const b of G.eshots) drawEnemyShot(ctx, b, t);

@@ -23,6 +23,14 @@ const UI = {
     this.bannerEl = document.getElementById('banner');
     this.hintEl = document.getElementById('hint');
     this.bossEl = document.getElementById('bossbar');
+    this.abilityEl = document.getElementById('abilityBtn');
+    // pointerdown, not click: it has to fire at once, also while the other thumb steers
+    this.abilityEl.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      Sound.init();
+      useAbility();
+    });
     document.getElementById('app').addEventListener('click', e => {
       const b = e.target.closest('[data-a]');
       if (!b || b.disabled) return;
@@ -82,7 +90,33 @@ const UI = {
   // ---------- HUD ----------
   hud(show) {
     this.hudEl.classList.toggle('hidden', !show);
-    if (show) this.updateHud();
+    this.abilityEl.classList.toggle('hidden', !show);
+    if (show) {
+      this.updateHud();
+      // the hero's ability icon on the button
+      const cv = this.abilityEl.querySelector('canvas');
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+      cv.width = cv.height = Math.round((cv.clientWidth || 40) * dpr);
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      if (G.player) drawIcon(ctx, ABILITIES[G.player.hero.ability].icon, cv.width);
+      this.abilityK = -1;
+    }
+  },
+  // Cooldown ring on the ability button (called every update).
+  abilityTick() {
+    const p = G.player;
+    if (!p) return;
+    const k = Math.round((p.abilityCd / abilityCooldown(p.hero)) * 100) / 100;
+    const ready = abilityReady();
+    if (k !== this.abilityK) {
+      this.abilityK = k;
+      this.abilityEl.style.setProperty('--cd', k);
+    }
+    if (ready !== this.abilityReady) {
+      this.abilityReady = ready;
+      this.abilityEl.classList.toggle('ready', ready);
+    }
   },
   updateHud() {
     if (!G.run) return;
@@ -188,6 +222,21 @@ const UI = {
     `, 'worlds');
   },
 
+  // The hero's active ability on its card, with the gem upgrade.
+  abilityInfo(h, owned) {
+    const a = ABILITIES[h.ability], L = abilityLevel(h), max = ABILITY_COSTS.length;
+    const pips = Array.from({ length: max }, (_, i) => `<i class="${i < L ? 'on' : ''}"></i>`).join('');
+    const up = owned && L < max
+      ? `<button class="btn small purple" data-a="upgradeAbility" data-id="${h.id}" ${save.gems < ABILITY_COSTS[L] ? 'disabled' : ''}>Upgrade ${gemTag(ABILITY_COSTS[L])}</button>`
+      : '';
+    return `
+      <div class="ability-info">
+        <canvas class="icon" data-icon="${a.icon}"></canvas>
+        <div><b>${a.name}</b> <span class="pips">${pips}</span><span>${a.desc(L)} · every ${abilityCooldown(h).toFixed(1)} s</span></div>
+      </div>
+      ${up}`;
+  },
+
   // Difficulty picker under a world card, shown once the world is cleared on Normal.
   tierRow(i) {
     const w = WORLDS[i], t = pickedTier(w), top = tierUnlocked(w);
@@ -222,6 +271,7 @@ const UI = {
             <b>${h.name} <span>${h.title}</span></b>
             ${bar('Health', h.hp / maxHp)}${bar('Damage', (h.atk / h.interval) / maxDps)}${bar('Speed', h.speed / maxSp)}
             <p>${h.passive}</p>
+            ${this.abilityInfo(h, owned)}
             ${btn}
           </div>
         </div>`;
@@ -424,6 +474,17 @@ const ACTIONS = {
     UI.title();
   },
   hero: d => { save.hero = d.id; writeSave(); UI.heroes(); },
+  upgradeAbility: d => {
+    const h = HERO_BY_ID[d.id], L = abilityLevel(h);
+    if (L >= ABILITY_COSTS.length || save.gems < ABILITY_COSTS[L] || !save.heroes.includes(h.id)) return;
+    save.gems -= ABILITY_COSTS[L];
+    save.abilities[h.id] = L + 1;
+    writeSave();
+    Sound.play('perk');
+    const y = UI.root.scrollTop;
+    UI.heroes();
+    UI.root.scrollTop = y;
+  },
   unlockHero: d => {
     const h = HERO_BY_ID[d.id];
     if (save.gems < h.cost || save.heroes.includes(h.id)) return;

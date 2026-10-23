@@ -8,7 +8,7 @@ function createPlayer(hero, perks) {
     aim: -Math.PI / 2, walk: 0, moving: false, stillT: 0, t: 0,
     cd: 0.4, volleys: [], recoil: 0, invuln: 0, flash: 0,
     shieldUp: false, shieldBurst: false, slowT: 0, hazardT: 0,
-    target: null, targetT: 0, meteorT: 3, stormT: 2, livesUsed: 0, dead: false,
+    target: null, targetT: 0, meteorT: 3, stormT: 2, livesUsed: 0, dead: false, abilityCd: 0,
   };
   p.s = computeStats(p);
   p.hp = p.s.maxHp;

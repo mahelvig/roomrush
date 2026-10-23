@@ -17,6 +17,8 @@ function defaultSave() {
     cleared: {},           // world id -> times cleared
     tiers: {},             // world id -> highest difficulty tier cleared (see TIER in config.js)
     tierPick: {},          // world id -> tier picked last time on the world screen
+    abilities: {},         // hero id -> ability upgrades bought (0..ABILITY_COSTS.length)
+    seenAbilityHint: false,
     settings: { sfx: true, music: true, vibrate: true },
     stats: { runs: 0, kills: 0, bosses: 0, deaths: 0 },
     seenHint: false,

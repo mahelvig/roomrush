@@ -101,6 +101,7 @@ window.addEventListener('keydown', e => {
   if ((e.code === 'Escape' || e.code === 'KeyP') && G.state === 'play') pauseGame();
   else if ((e.code === 'Escape' || e.code === 'KeyP') && G.state === 'pause') resumeGame();
   else if (G.state === 'perk' && (e.code === 'Digit1' || e.code === 'Digit2')) choosePerk(e.code === 'Digit1' ? 0 : 1);
+  else if (G.state === 'play' && (e.code === 'Space' || e.code === 'KeyE')) { e.preventDefault(); useAbility(); }
   if (DEV) devKey(e.code);
 });
 // stop the page from scrolling or zooming on phones

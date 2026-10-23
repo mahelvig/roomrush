@@ -220,6 +220,37 @@ h2, h3 {
 .bb-track::before { left: 60%; }
 .bb-track::after { left: 25%; }
 
+/* ability button, bottom right; --cd = share of the cooldown left (abilities.js) */
+#abilityBtn {
+  --cd: 0;
+  position: absolute;
+  right: 1em;
+  bottom: calc(var(--sab) + 1.3em);
+  z-index: 5;
+  width: 4.4em;
+  height: 4.4em;
+  padding: 0;
+  border-radius: 50%;
+  border: .18em solid var(--line);
+  background: linear-gradient(#5f50a0, #3e3170);
+  box-shadow: 0 .25em 0 var(--line), inset 0 .14em 0 rgba(255, 255, 255, .25);
+  pointer-events: auto;
+  touch-action: none;
+  overflow: hidden;
+  opacity: .8;
+}
+#abilityBtn canvas { width: 78%; height: 78%; display: block; margin: 11%; }
+#abilityBtn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(rgba(10, 6, 24, .72) calc(var(--cd) * 360deg), transparent 0);
+}
+#abilityBtn.ready { opacity: 1; background: linear-gradient(#ffd86a, #f0a81c); animation: abilityReady 1.6s ease-in-out infinite; }
+#abilityBtn:active { transform: translateY(.12em); }
+@keyframes abilityReady { 50% { box-shadow: 0 .25em 0 var(--line), 0 0 .9em #ffd86a; } }
+
 #banner {
   position: absolute;
   left: 0;
@@ -388,6 +419,13 @@ header h2 { flex: 1; font-size: 1.7em; }
 /* heroes */
 .hero-card { display: flex; gap: .5em; padding: .6em .7em .7em .4em; align-items: center; }
 .hero-card.sel { box-shadow: 0 .3em 0 var(--line), inset 0 0 0 .15em #ffcf3f; }
+.hero-card .ability-info { display: flex; gap: .45em; align-items: center; margin: .2em 0 .1em; text-align: left; }
+.hero-card .ability-info canvas { width: 2.3em; height: 2.3em; flex: none; }
+.hero-card .ability-info b { font-family: var(--title); font-weight: normal; font-size: 1.05em; }
+.hero-card .ability-info span { display: block; color: var(--muted); font-size: .78em; }
+.hero-card .ability-info .pips { display: inline-flex; gap: .2em; vertical-align: middle; margin-left: .2em; }
+.hero-card .ability-info .pips i { width: .55em; height: .55em; border-radius: 50%; background: rgba(255, 255, 255, .18); border: .1em solid var(--line); }
+.hero-card .ability-info .pips i.on { background: #c38eff; }
 .hero-card canvas { width: 6.5em; height: 8em; flex: none; }
 .hero-card .info { flex: 1; display: flex; flex-direction: column; gap: .3em; min-width: 0; }
 .hero-card b { font-family: var(--title); font-weight: normal; font-size: 1.35em; }

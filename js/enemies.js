@@ -489,6 +489,7 @@ function shotHits(b, e) {
   let d = b.dmg;
   const crit = Math.random() < s.crit;
   if (crit) d *= s.critMul;
+  if (b.main && e.boss) d *= p.hero.vsBoss || 1;
   if (s.headshot && !e.boss && !e.elite && b.main && Math.random() < s.headshot) {
     FX.text(e.x, e.y - e.r - 16, 'HEADSHOT', '#ff4f6d', 12, { pop: 0.5 });
     d = e.hp + 1;

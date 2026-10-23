@@ -42,25 +42,44 @@ const HEROES = [
     id: 'ranger', name: 'Rook', title: 'The Ranger', cost: 0,
     hp: 520, atk: 40, interval: 0.58, speed: 112, crit: 0.15,
     weapon: 'bow', shot: 'arrow', shotSpeed: 440,
-    passive: '+10% critical chance',
+    passive: '+10% critical chance', ability: 'rain',
     pal: { skin: '#ffd6ae', main: '#3fa14f', dark: '#2a6d36', accent: '#c98a48', hair: '#8a5530', eye: '#2b2140' },
   },
   {
     id: 'mage', name: 'Nova', title: 'The Mage', cost: 30,
-    hp: 460, atk: 54, interval: 0.76, speed: 106, crit: 0.05,
+    hp: 460, atk: 50, interval: 0.76, speed: 106, crit: 0.05,
     weapon: 'staff', shot: 'orb', shotSpeed: 320, homing: 3.4,
-    passive: 'Magic orbs seek out their target',
+    vsBoss: 0.65,   // homing orbs never miss a boss, so they hit bosses softer
+    passive: 'Magic orbs seek out their target (35% less damage to bosses)', ability: 'blink',
     pal: { skin: '#ffd9c2', main: '#7a5cff', dark: '#4d36b8', accent: '#ffcf3f', hair: '#f1f1ff', eye: '#2b2140' },
   },
   {
     id: 'tinker', name: 'Pip', title: 'The Tinker', cost: 80,
     hp: 580, atk: 22, interval: 0.29, speed: 114, crit: 0.05,
     weapon: 'blaster', shot: 'bolt', shotSpeed: 540, drone: 1,
-    passive: 'Starts every run with a combat drone',
+    passive: 'Starts every run with a combat drone', ability: 'turret',
     pal: { skin: '#f2c29b', main: '#ff8a3d', dark: '#c45a1c', accent: '#3fd1c8', hair: '#3b2a24', eye: '#2b2140' },
   },
 ];
 const HERO_BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
+
+// Active abilities (abilities.js): one per hero, on a button with a cooldown. Each of the
+// ABILITY_COSTS upgrades (bought with gems) cuts the cooldown by 10% and makes it stronger.
+const ABILITY_COSTS = [20, 40, 60, 80, 100];
+const ABILITIES = {
+  rain: {
+    name: 'Arrow Rain', cd: 18, icon: 'rain',
+    desc: L => `Arrows rain down around your target for 2 seconds: ${+(6 + L).toFixed(1)}× your shot damage`,
+  },
+  blink: {
+    name: 'Blink Nova', cd: 14, icon: 'blink',
+    desc: L => `Teleport the way you move. The spot you leave explodes for ${+(2.5 + 0.5 * L).toFixed(1)}× your shot damage`,
+  },
+  turret: {
+    name: 'Deploy Turret', cd: 20, icon: 'turret',
+    desc: L => `Set down a turret that shoots for ${8 + L} seconds`,
+  },
+};
 
 // Permanent upgrades bought with gold between runs.
 const UPGRADES = [

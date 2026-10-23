@@ -1347,6 +1347,23 @@ const ICONS = {
   gem(c) { drawGem(c, 0, 0, 16); },
   slow(c) { ICONS.hourglass(c); },
   orbit(c) { ICONS.orbs(c); },
+  // ability icons
+  rain(c) {
+    for (const [x, y] of [[-12, -4], [0, 2], [12, -6]]) iconArrow(c, x + 4, y - 16, x - 2, y + 14, '#f0dcb4', '#e6edf7');
+    ell(c, 0, 17, 16, 4); c.fillStyle = 'rgba(255,224,122,0.5)'; c.fill();
+  },
+  blink(c) {
+    glow(c, 4, 0, 30, '#c38eff', 0.8);
+    for (const [y, l] of [[-8, 12], [0, 16], [8, 10]]) line(c, -20, y, -20 + l, y, 'rgba(255,255,255,0.75)', 2.4);
+    star(c, 6, 0, 13, '#c38eff');
+    shine(c, 3, -4, 3, 2, 0.7);
+  },
+  turret(c) {
+    rrect(c, -14, 4, 28, 12, 4); fs(c, '#c45a1c', 2);
+    rrect(c, 2, -9, 18, 7, 3); fs(c, '#5a6478', 2);
+    circ(c, 0, -4, 11); fs(c, '#ff8a3d', 2);
+    circ(c, 0, -4, 4); c.fillStyle = '#3fd1c8'; c.fill();
+  },
 };
 
 // Draws icon `id` centred in a square canvas context of size `size`.
