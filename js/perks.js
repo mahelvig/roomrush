@@ -123,13 +123,15 @@ function baseStats(hero) {
     meteor: 0, storm: 0, size: 1, knock: 0, rage: 0, headshot: 0,
     lives: 0, gold: upgradeLevel('greed') * 0.1 + masteryLevel('greed') * 0.03, roomHeal: upgradeLevel('recover') * 0.03,
     bulletSlow: 1, homing: hero.homing || 0,
+    abilityCd: 1, coreBreak: 0, shieldPierce: 0, firstHit: 0, threeCards: 0, glass: 0,
   };
 }
 
 function computeStats(p) {
   const s = baseStats(p.hero);
   for (const id in p.perks) if (PERK_BY_ID[id]) PERK_BY_ID[id].mod(s, p.perks[id]);
-  s.maxHp = Math.round(s.maxHp * (1 + s.hpPct));
+  for (const r of p.relics || []) if (RELIC_BY_ID[r.id] && RELIC_BY_ID[r.id].mod) RELIC_BY_ID[r.id].mod(s, r.L);
+  s.maxHp = Math.round(s.maxHp * (1 + s.hpPct) * (s.glass ? 0.5 : 1));
   s.dodge = Math.min(0.5, s.dodge);
   s.crit = Math.min(1, s.crit);
   return s;

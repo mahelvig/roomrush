@@ -1358,6 +1358,10 @@ function drawPlayerShot(ctx, b, t) {
       glow(ctx, 0, 0, 14, '#c06bff', 1);
       circ(ctx, 0, 0, 3.6); fs(ctx, '#e0b3ff', 1.2);
       break;
+    case 'thorn':
+      ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-4, -3); ctx.lineTo(-4, 3); ctx.closePath();
+      fs(ctx, '#dfe6f0', 1.3);
+      break;
     case 'boomerang':
       if (b.glow) glow(ctx, 0, 0, 16, glowC, 0.8);
       ctx.rotate(t * 18 + (b.x + b.y) * 0.01);
@@ -1744,6 +1748,116 @@ const ICONS = {
     oline(c, 7, -4, 12, -12, '#c9a46a', 2);
     star(c, 14, -15, 7, '#ffcf3f');
   },
+  // ---- relics ----
+  r_water(c) {
+    relicDisc(c, '#2f86c6');
+    c.beginPath(); c.moveTo(0, -15); c.quadraticCurveTo(11, -1, 9, 5); c.arc(0, 5, 9, 0, Math.PI); c.quadraticCurveTo(-11, -1, 0, -15);
+    fs(c, '#5fd2ff', 2);
+    shine(c, -3, 2, 2.4, 4, 0.6, 0.3);
+    ell(c, 0, 16, 13, 3); c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1.6; c.stroke();
+  },
+  r_stone(c) {
+    relicDisc(c, '#6b6478');
+    c.beginPath(); c.moveTo(-15, 12); c.lineTo(-2, -12); c.lineTo(13, 4);
+    c.strokeStyle = 'rgba(255,255,255,0.65)'; c.lineWidth = 2; c.setLineDash([3, 3]); c.stroke(); c.setLineDash([]);
+    ell(c, -2, -11, 4, 2.5); c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
+    c.beginPath(); c.moveTo(-8, 14); c.lineTo(-13, 6); c.lineTo(-6, -1); c.lineTo(5, 1); c.lineTo(9, 10); c.lineTo(2, 16); c.closePath();
+    fs(c, '#a69c8a', 2);
+    iconArrow(c, 6, -4, 15, 6, '#f0dcb4', '#ffcf3f', 2.4);
+  },
+  r_boots(c) {
+    relicDisc(c, '#8a3a1c');
+    flame(c, -9, 6, 8);
+    c.save(); c.translate(3, 0); c.scale(0.8, 0.8); ICONS.boot(c); c.restore();
+  },
+  r_thorns(c) {
+    relicDisc(c, '#2f6d36');
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU;
+      c.beginPath(); c.moveTo(Math.cos(a - 0.22) * 10, Math.sin(a - 0.22) * 10); c.lineTo(Math.cos(a) * 19, Math.sin(a) * 19); c.lineTo(Math.cos(a + 0.22) * 10, Math.sin(a + 0.22) * 10);
+      c.closePath(); fs(c, '#dfe6f0', 1.4);
+    }
+    c.beginPath(); c.arc(0, 0, 10, 0, TAU); c.strokeStyle = OL; c.lineWidth = 7; c.stroke(); c.strokeStyle = '#6bd35a'; c.lineWidth = 4; c.stroke();
+  },
+  r_hammer(c) {
+    relicDisc(c, '#1f5f8a');
+    circ(c, -6, 7, 9); fs(c, '#3fd1ff', 2);
+    c.beginPath(); c.moveTo(-10, 2); c.lineTo(-6, 7); c.lineTo(-9, 12); c.moveTo(-6, 7); c.lineTo(-1, 9);
+    c.strokeStyle = OL; c.lineWidth = 1.6; c.stroke();
+    c.save(); c.translate(6, -4); c.rotate(-0.7);
+    oline(c, 0, -2, 0, 16, '#8a5a36', 2.6);
+    rrect(c, -8, -9, 16, 9, 2); fs(c, '#8a8f9e', 2);
+    c.restore();
+  },
+  r_coin(c) {
+    relicDisc(c, '#8a6a1c');
+    circ(c, 0, 0, 13); fs(c, '#ffcf3f', 2.2);
+    circ(c, 0, 0, 9.5); c.strokeStyle = '#d99a1a'; c.lineWidth = 1.6; c.stroke();
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU + 0.785; circ(c, Math.cos(a) * 3.6, Math.sin(a) * 3.6, 3.2); fs(c, '#5fbf4a', 1.3); }
+    shine(c, -5, -6, 3, 1.8, 0.6);
+  },
+  r_sand(c) {
+    relicDisc(c, '#5a3f8a');
+    c.save(); c.scale(0.85, 0.85); ICONS.hourglass(c); c.restore();
+    c.beginPath(); c.arc(0, -18, 3.5, 0, TAU); c.strokeStyle = '#ffcf3f'; c.lineWidth = 2; c.stroke();
+  },
+  r_mark(c) {
+    relicDisc(c, '#8a2a3a');
+    for (const r of [14, 8]) { c.beginPath(); c.arc(0, 0, r, 0, TAU); c.strokeStyle = OL; c.lineWidth = 5; c.stroke(); c.strokeStyle = '#ff5a6e'; c.lineWidth = 2.4; c.stroke(); }
+    for (const [x, y] of [[0, -19], [0, 19], [-19, 0], [19, 0]]) line(c, x * 0.55, y * 0.55, x, y, '#ffffff', 2.2);
+    circ(c, 0, 0, 2.6); c.fillStyle = '#ffffff'; c.fill();
+  },
+  r_glass(c) {
+    relicDisc(c, '#3a5a8a');
+    glow(c, 0, 0, 24, '#bff1ff', 0.5);
+    heartPath(c, 0, 1, 15); c.fillStyle = 'rgba(200,240,255,0.55)'; c.fill(); c.strokeStyle = OL; c.lineWidth = 2.2; c.stroke();
+    c.beginPath(); c.moveTo(-2, -6); c.lineTo(2, 0); c.lineTo(-2, 5); c.lineTo(1, 11); c.strokeStyle = '#ffffff'; c.lineWidth = 1.6; c.stroke();
+    shine(c, -7, -5, 3, 2, 0.8);
+  },
+  r_totem(c) {
+    relicDisc(c, '#6e4a2c');
+    rrect(c, -8, -14, 16, 30, 3); fs(c, '#a0703f', 2);
+    for (const y of [-6, 6]) line(c, -8, y, 8, y, '#6e4a2c', 1.8);
+    for (const s of [-1, 1]) { circ(c, s * 3.2, -10, 1.8); c.fillStyle = OL; c.fill(); }
+    ell(c, 0, 1, 5, 2.4); c.fillStyle = OL; c.fill();
+    bolt(c, 12, -10, 7, '#9fe8ff');
+  },
+  // ---- evolutions ----
+  e_lance(c) {
+    evoRing(c);
+    c.save(); c.rotate(-0.78);
+    line(c, -22, 0, 18, 0, 'rgba(120,230,255,0.45)', 12);
+    line(c, -22, 0, 18, 0, '#bff8ff', 5);
+    line(c, -22, 0, 18, 0, '#ffffff', 1.8);
+    c.beginPath(); c.moveTo(22, 0); c.lineTo(13, -6); c.lineTo(13, 6); c.closePath(); fs(c, '#e6edf7', 1.6);
+    c.restore();
+  },
+  e_plasma(c) {
+    evoRing(c);
+    glow(c, 0, 0, 26, '#c38eff', 0.8);
+    circ(c, 0, 2, 11); fs(c, '#8a5cff', 2);
+    flame(c, 0, 4, 7, '#ff8a2a', '#ffe08a');
+    bolt(c, 10, -10, 7, '#ffe55a');
+  },
+  e_blades(c) {
+    evoRing(c);
+    for (let i = 0; i < 3; i++) {
+      c.save(); c.rotate((i / 3) * TAU);
+      c.beginPath(); c.moveTo(0, -18); c.quadraticCurveTo(8, -12, 6, -4); c.lineTo(0, -8); c.closePath(); fs(c, '#dfe7f2', 1.6);
+      c.restore();
+    }
+    circ(c, 0, 0, 7); fs(c, '#9cc8ff', 2);
+  },
+  e_zero(c) {
+    evoRing(c);
+    glow(c, 0, 0, 24, '#bff1ff', 0.7);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU;
+      oline(c, 0, 0, Math.cos(a) * 16, Math.sin(a) * 16, '#dff6ff', 2.2);
+      oline(c, Math.cos(a) * 10, Math.sin(a) * 10, Math.cos(a + 0.5) * 14, Math.sin(a + 0.5) * 14, '#dff6ff', 1.4);
+    }
+    circ(c, 0, 0, 4); fs(c, '#7fdcff', 1.4);
+  },
   turret(c) {
     rrect(c, -14, 4, 28, 12, 4); fs(c, '#c45a1c', 2);
     rrect(c, 2, -9, 18, 7, 3); fs(c, '#5a6478', 2);
@@ -1751,6 +1865,35 @@ const ICONS = {
     circ(c, 0, -4, 4); c.fillStyle = '#3fd1c8'; c.fill();
   },
 };
+
+// A relic's medallion behind its picture, and the swirl round an evolution.
+function relicDisc(c, color) {
+  c.beginPath();
+  for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i * TAU) / 6; c.lineTo(Math.cos(a) * 22, Math.sin(a) * 22); }
+  c.closePath();
+  fs(c, darken(color, 0.25), 2.4);
+  c.beginPath();
+  for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i * TAU) / 6; c.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); }
+  c.closePath();
+  c.strokeStyle = 'rgba(255,230,160,0.55)'; c.lineWidth = 1.6; c.stroke();
+}
+function evoRing(c) {
+  for (let i = 0; i < 3; i++) {
+    c.beginPath(); c.arc(0, 0, 21, (i / 3) * TAU, (i / 3) * TAU + 1.6);
+    c.strokeStyle = ['#ff6ad5', '#ffcf3f', '#5fd2ff'][i]; c.lineWidth = 3; c.stroke();
+  }
+}
+
+// A relic or a recipe lying on the floor: its icon in a glow of its rarity.
+function drawRelicPickup(ctx, k, y, t) {
+  const r = k.kind === 'relic' ? RELIC_BY_ID[k.value] : PERK_BY_ID[k.value];
+  const color = RARITY[r.rarity].color;
+  glow(ctx, k.x, y, 26 + Math.sin(t * 5) * 3, color, 0.8);
+  ctx.save();
+  ctx.translate(k.x - 10, y - 10);
+  drawIcon(ctx, r.icon, 20);
+  ctx.restore();
+}
 
 // Draws icon `id` centred in a square canvas context of size `size`.
 function drawIcon(ctx, id, size) {

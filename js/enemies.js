@@ -607,7 +607,7 @@ function hurtEnemy(e, amount, o = {}) {
   // (a shielded command-room core takes nothing from anything; a boss's shield is handled in bossTakeHit)
   if (e.decoy || e.statue || (e.shielded && !e.boss)) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
   const p = G.player;
-  let d = amount;
+  let d = relicDamage(e, amount);
   if (e.status.curse > 0) d *= 1 + 0.2 * p.s.curse;
   d = Math.max(1, Math.round(d));
   if (e.boss) {
@@ -624,12 +624,16 @@ function hurtEnemy(e, amount, o = {}) {
 // Shot from the hero (or a companion) hits an enemy.
 function shotHits(b, e) {
   const p = G.player, s = p.s;
-  if (e.shielded || shotBlocked(b, e)) {
-    FX.burst(b.x, b.y, ['#bfe6ff', '#ffffff'], 3, { type: 'spark', min: 40, max: 120 });
-    Sound.play('hit');
-    return;
-  }
   let d = b.dmg;
+  if (e.shielded || shotBlocked(b, e)) {
+    // Core Breaker: some of it gets past a Shielded enemy's shield (not a boss's or a core's bubble)
+    if (!e.shielded && s.shieldPierce && !(e.aff.mirror && e.mirrorN % 5 === 0)) d *= s.shieldPierce;
+    else {
+      FX.burst(b.x, b.y, ['#bfe6ff', '#ffffff'], 3, { type: 'spark', min: 40, max: 120 });
+      Sound.play('hit');
+      return;
+    }
+  }
   if (shellHit(b, e)) {
     d *= 0.3;
     FX.burst(b.x, b.y, ['#c9bfa9', '#ffffff'], 2, { type: 'spark', min: 40, max: 100 });
@@ -637,6 +641,7 @@ function shotHits(b, e) {
   const crit = Math.random() < s.crit;
   if (crit) d *= s.critMul;
   if (b.main && e.boss) d *= p.hero.vsBoss || 1;
+  d = markDamage(e, d);
   if (s.headshot && !e.boss && !e.elite && b.main && Math.random() < s.headshot) {
     FX.text(e.x, e.y - e.r - 16, 'HEADSHOT', '#ff4f6d', 12, { pop: 0.5 });
     d = e.hp + 1;
@@ -674,7 +679,7 @@ function applyElements(e, b, d) {
   }
   if (s.frost && b.main) {
     st.slow = 2;
-    if (!e.boss && st.freeze <= 0 && Math.random() < 0.08 * s.frost) {
+    if (!e.boss && st.freeze <= 0 && Math.random() < 0.08 * s.frost * (s.zero ? 1.5 : 1)) {
       st.freeze = e.elite ? 0.5 : 1.2;
       FX.burst(e.x, e.y, ['#bff1ff', '#ffffff'], 8, { min: 30, max: 90 });
       Sound.play('freeze');
@@ -682,15 +687,19 @@ function applyElements(e, b, d) {
   }
   if (s.curse && b.main) st.curse = 5;
   if (s.lightning && b.main && !b.chained) {
-    const n = 1 + s.lightning;
+    const n = 1 + s.lightning + (s.plasma ? 2 : 0), reach = s.plasma ? 170 : 130;
     const near = G.enemies
-      .filter(o => o !== e && canTarget(o) && dist2(o.x, o.y, e.x, e.y) < 130 * 130)
+      .filter(o => o !== e && canTarget(o) && dist2(o.x, o.y, e.x, e.y) < reach * reach)
       .sort((a1, a2) => dist2(a1.x, a1.y, e.x, e.y) - dist2(a2.x, a2.y, e.x, e.y))
       .slice(0, n);
     let fx = e.x, fy = e.y;
     for (const o of near) {
-      FX.bolt(fx, fy, o.x, o.y, '#ffe55a', 1.8);
+      FX.bolt(fx, fy, o.x, o.y, s.plasma ? '#c38eff' : '#ffe55a', 1.8);
       hurtEnemy(o, d * (0.25 + 0.1 * s.lightning), { color: '#ffe55a' });
+      if (s.plasma) {   // and sets it on fire
+        o.status.burn = 2.5;
+        o.status.burnDps = Math.max(o.status.burnDps, atk * 0.22 * Math.max(1, s.burn));
+      }
       fx = o.x; fy = o.y;
     }
     if (near.length) Sound.play('zap');
@@ -721,6 +730,7 @@ function killEnemy(e) {
 
   if (e.aff.explosive) affixExplode(e);
   if (e.def.ai === 'core') coreDown(e);
+  relicKill(e);
 
   // loot (summoned helpers and boss crystals give none)
   if (!e.noLoot) {
@@ -732,6 +742,7 @@ function killEnemy(e) {
       if (!e.noGems && Math.random() < Math.min(0.5, 0.15 + 0.05 * G.tier)) dropPickup('gem', e.x, e.y, 1);
     } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
     if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
+    if ((e.elite || e.boss) && !e.noGems) maybeDropRelic(e.boss ? 'boss' : 'elite', e.x, e.y);
   }
 
   if (s.vamp) healPlayer(p.s.maxHp * s.vamp);

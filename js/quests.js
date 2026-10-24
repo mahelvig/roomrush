@@ -46,6 +46,7 @@ const ACHIEVEMENTS = [
   { id: 'heroes', name: 'Hero of All Trades', goals: [1, 2, 3], stat: () => save.stats.heroWins.length, text: n => `Clear a world with ${n} different hero${n === 1 ? '' : 'es'}` },
   { id: 'rich', name: 'Treasure Hoarder', goals: [10000, 100000, 1000000], stat: () => save.stats.goldTotal, text: n => `Collect ${fmt(n)} gold in total` },
   { id: 'ability', name: 'Ability Adept', goals: [50, 500, 2000], stat: () => save.stats.abilityUses, text: n => `Use abilities ${fmt(n)} times` },
+  { id: 'relics', name: 'Relic Hunter', goals: [2, 5, 10], stat: () => Object.keys(save.relics).length, text: n => `Find ${n} different relics` },
 ];
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a.id, a]));
 

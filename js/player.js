@@ -1,9 +1,9 @@
 'use strict';
 // The hero: movement, auto-aim, shooting, taking damage and companions.
 
-function createPlayer(hero, perks) {
+function createPlayer(hero, perks, relics) {
   const p = {
-    hero, perks: Object.assign({}, perks || {}),
+    hero, perks: Object.assign({}, perks || {}), relics: relics || [],
     x: DOOR_X, y: ROOM_Y + ROOM_H - 36, r: 10, vx: 0, vy: 0,
     aim: -Math.PI / 2, walk: 0, moving: false, stillT: 0, t: 0,
     cd: 0.4, volleys: [], recoil: 0, invuln: 0, flash: 0,
@@ -149,6 +149,7 @@ function updatePlayer(p, dt) {
   p.ready = p.cd < s.interval * 0.55;
 
   updateSkyAttacks(p, dt);
+  updateRelics(p, dt);
 }
 
 const MAX_SHOTS = 120;
@@ -162,7 +163,8 @@ function fireVolley(p, ang) {
   const dmg = playerAtk(p) * s.dmgMul;
   const dirs = [];
   const n = 1 + s.front;
-  for (let i = 0; i < n; i++) dirs.push([ang, (i - (n - 1) / 2) * 7]);
+  if (s.lance) fireLance(p, ang, dmg * n * 1.1);
+  else for (let i = 0; i < n; i++) dirs.push([ang, (i - (n - 1) / 2) * 7]);
   const diagAngles = [0.45, 0.22, 0.68];
   for (let i = 0; i < s.diag; i++) { dirs.push([ang + diagAngles[i], 0]); dirs.push([ang - diagAngles[i], 0]); }
   for (let i = 0; i < s.side; i++) {
@@ -171,7 +173,7 @@ function fireVolley(p, ang) {
   }
   for (let i = 0; i < s.rear; i++) dirs.push([ang + Math.PI + (s.rear > 1 ? (i ? 0.2 : -0.2) : 0), 0]);
   const glowC = elementGlow(s);
-  if (p.hero.shot === 'bomb') { throwVolley(p, ang, dirs, dmg, glowC); return; }
+  if (p.hero.shot === 'bomb') { if (dirs.length) throwVolley(p, ang, dirs, dmg, glowC); else { p.recoil = 1; Sound.play('zap'); } return; }
   for (const [a, off] of dirs) {
     const px = -Math.sin(a) * off, py = Math.cos(a) * off;
     G.shots.push({
@@ -186,7 +188,7 @@ function fireVolley(p, ang) {
   }
   if (G.shots.length > MAX_SHOTS) G.shots.splice(0, G.shots.length - MAX_SHOTS);
   p.recoil = 1;
-  Sound.play(p.hero.shot === 'arrow' ? 'shoot' : p.hero.shot === 'orb' ? 'orb' : 'bolt');
+  Sound.play(s.lance ? 'zap' : p.hero.shot === 'arrow' ? 'shoot' : p.hero.shot === 'orb' ? 'orb' : 'bolt');
 }
 
 // ---------- Brick's bombs ----------
@@ -299,6 +301,7 @@ function hurtPlayer(amount, o = {}) {
   const p = G.player;
   if (!p || p.dead || G.state !== 'play' || G.bossDead) return false;
   if (p.invuln > 0 && !o.always) return false;
+  if (!o.hazard && relicBlocks(p)) return false;
   if (!o.hazard && Math.random() < p.s.dodge) {
     FX.text(p.x, p.y - 26, 'Dodge!', '#bff1ff', 11);
     Sound.play('dodge');
@@ -325,6 +328,8 @@ function hurtPlayer(amount, o = {}) {
   FX.kick(6);
   vibrate(35);
   Sound.play('hurt');
+  if (!o.hazard) relicHurt(p);
+  p.stillT = 0;
   if (p.hp <= 0) playerDown(p);
   return true;
 }
@@ -427,7 +432,7 @@ function syncHelpers(p) {
 }
 
 function updateHelpers(p, dt) {
-  const atk = playerAtk(p);
+  const atk = playerAtk(p), s = p.s;
   let flyer = 0;
   for (const h of G.helpers) {
     if (h.kind === 'blade' || h.kind === 'guard') {
@@ -435,16 +440,17 @@ function updateHelpers(p, dt) {
       const a = (h.kind === 'blade' ? G.time * 3.3 : -G.time * 2.4) + ((h.idx - 1) * TAU) / h.of;
       h.x = p.x + Math.cos(a) * radius;
       h.y = p.y - 2 + Math.sin(a) * radius;
-      if (h.kind === 'blade') {
+      if (h.kind === 'blade' || (h.kind === 'guard' && s.bladestorm)) {
         for (const e of G.enemies) {
           if (!canTarget(e)) continue;
           if (dist2(h.x, h.y, e.x, e.y) < (e.r + 8) * (e.r + 8) && (e.bladeT || 0) <= 0) {
             e.bladeT = 0.35;
-            hurtEnemy(e, atk * 0.45, { color: '#dfe7f2' });
+            hurtEnemy(e, atk * (h.kind === 'blade' ? 0.45 : 0.3), { color: '#dfe7f2' });
             FX.burst(h.x, h.y, '#ffffff', 3, { type: 'spark', min: 60, max: 140 });
           }
         }
-      } else {
+      }
+      if (h.kind === 'guard' || s.bladestorm) {
         for (let i = G.eshots.length - 1; i >= 0; i--) {
           const b = G.eshots[i];
           if (dist2(h.x, h.y, b.x, b.y) < (b.r + 7) * (b.r + 7)) {

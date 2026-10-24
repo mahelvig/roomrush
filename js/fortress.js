@@ -450,6 +450,7 @@ function openChest(ch, p) {
   dropCoins(ch.x, ch.y, Math.round(2.5 * k * (1 + 0.05 * roomLevel()) * rand(0.9, 1.1)));
   if (Math.random() < Math.min(0.12, 0.06 + 0.01 * G.tier)) dropPickup('gem', ch.x, ch.y, 1);
   if (Math.random() < 0.3) dropPickup('heart', ch.x, ch.y, 0.15);
+  maybeDropRelic('chest', ch.x, ch.y);
   FX.burst(ch.x, ch.y - 6, ['#ffcf3f', '#ffffff', '#c98a48'], 16, { angle: -Math.PI / 2, spread: 1.4, min: 50, max: 160 });
   FX.text(ch.x, ch.y - 26, 'Treasure!', '#ffcf3f', 12);
   Sound.play('gem');

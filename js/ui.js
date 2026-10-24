@@ -108,7 +108,7 @@ const UI = {
   abilityTick() {
     const p = G.player;
     if (!p) return;
-    const k = Math.round((p.abilityCd / abilityCooldown(p.hero)) * 100) / 100;
+    const k = Math.round((p.abilityCd / abilityCooldown(p.hero, p.s)) * 100) / 100;
     const ready = abilityReady();
     if (k !== this.abilityK) {
       this.abilityK = k;
@@ -206,7 +206,10 @@ const UI = {
           <button class="btn blue" data-a="heroes">Heroes</button>
           <button class="btn purple" data-a="upgrades">Upgrades</button>
         </div>
-        <button class="btn gold quests-btn" data-a="quests">Quests${waiting ? `<i class="badge">${waiting}</i>` : ''}</button>
+        <div class="row">
+          <button class="btn gold quests-btn" data-a="quests">Quests${waiting ? `<i class="badge">${waiting}</i>` : ''}</button>
+          <button class="btn teal" data-a="relics">Relics</button>
+        </div>
       </div>
       ${ios ? '<p class="tip">Tip: tap Share and “Add to Home Screen” to play in full screen.</p>' : ''}
     `, 'title');
@@ -242,8 +245,81 @@ const UI = {
       ${open && depthStarts().length > 1 ? this.depthRow() : ''}`;
     this.open(`
       <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Choose a world</h2></header>
+      ${this.wornStrip()}
       <div class="list">${cards}${depths}</div>
     `, 'worlds');
+  },
+
+  // The relics you will wear, small, with a way to the relic screen.
+  wornStrip() {
+    if (!Object.keys(save.relics).length) return '';
+    const worn = wornRelics();
+    const slots = Array.from({ length: relicSlots() }, (_, i) => {
+      const r = worn[i] && RELIC_BY_ID[worn[i].id];
+      return r ? `<span class="mini r-${r.rarity}"><canvas class="icon" data-icon="${r.icon}"></canvas><em>${worn[i].L}</em></span>` : '<span class="mini empty"></span>';
+    }).join('');
+    return `<button class="worn-strip panel" data-a="relics"><b>Relics</b>${slots}<span class="link">Change</span></button>`;
+  },
+
+  // Relics (the collection, and which to wear) and the recipe book of evolutions.
+  relics(tab = this.relicTab || 'relics') {
+    this.relicTab = tab;
+    const tabs = `<div class="tabs">
+      <button class="tab ${tab === 'relics' ? 'on' : ''}" data-a="relics" data-tab="relics">Relics</button>
+      <button class="tab ${tab === 'recipes' ? 'on' : ''}" data-a="relics" data-tab="recipes">Recipes</button>
+    </div>`;
+    const pips = L => `<span class="pips">${Array.from({ length: RELIC_MAX }, (_, i) => `<i class="${i < L ? 'on' : ''}"></i>`).join('')}</span>`;
+    let body;
+    if (tab === 'recipes') {
+      body = EVOLUTIONS.map(ev => {
+        const found = !!save.recipes[ev.id];
+        return `
+          <div class="upg panel ${found ? '' : 'dim'}">
+            <canvas class="icon" data-icon="${found ? ev.icon : 'gift'}"></canvas>
+            <div class="u-info">
+              <b>${found ? ev.name : 'Unknown recipe'}</b>
+              <span>${found ? `<em>${ev.from.map(id => PERK_BY_ID[id].name).join(' + ')}</em> · ${ev.desc}` : 'Still to be found'}</span>
+            </div>
+          </div>`;
+      }).join('');
+      body += '<p class="sub">Recipes drop where relics do. Max both perks of a recipe in one run, and the next perk choice lets you merge them.</p>';
+    } else {
+      const worn = save.worn;
+      const n = relicSlots();
+      const slots = Array.from({ length: n }, (_, i) => {
+        const r = RELIC_BY_ID[worn[i]];
+        return r && relicLevel(r.id) ? `<button class="slot r-${r.rarity}" data-a="wearRelic" data-id="${r.id}"><canvas class="icon" data-icon="${r.icon}"></canvas></button>`
+          : '<span class="slot empty"></span>';
+      }).join('');
+      body = `
+        <div class="relic-slots panel"><b>Worn</b><div class="slots">${slots}</div>
+          <span>${n < 3 ? 'A third slot opens when you clear Frozen Crypt on Hell' : 'Tap a relic to wear it or take it off'}</span></div>` +
+        RELICS.map(r => {
+          const L = relicLevel(r.id), on = worn.includes(r.id), R = RARITY[r.rarity];
+          if (!L) {
+            return `
+              <div class="upg panel dim">
+                <span class="icon unknown">?</span>
+                <div class="u-info"><b>Unknown relic</b><span style="color:${R.color}">${R.name}</span></div>
+              </div>`;
+          }
+          return `
+            <div class="upg panel relic ${on ? 'worn' : ''}">
+              <canvas class="icon" data-icon="${r.icon}"></canvas>
+              <div class="u-info">
+                <b>${r.name} ${pips(L)}</b>
+                <span><i class="rar-tag" style="color:${R.color}">${R.name}</i> · level ${L}${L < RELIC_MAX ? '' : ' (max)'} · ${r.desc(L)}</span>
+              </div>
+              <button class="btn small ${on ? 'blue' : 'green'}" data-a="wearRelic" data-id="${r.id}">${on ? 'Take off' : 'Wear'}</button>
+            </div>`;
+        }).join('') +
+        '<p class="sub">Relics drop from elites and bosses on Hard and up, from chests in the Iron Citadel and at the milestones of The Depths. A relic you already have goes up a level.</p>';
+    }
+    this.open(`
+      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Relics</h2></header>
+      ${tabs}
+      <div class="list">${body}</div>
+    `, 'relics');
   },
 
   // Where to start in The Depths: depth 1 or a checkpoint every fifth depth.
@@ -466,7 +542,8 @@ const UI = {
     const cards = choices.map((k, i) => {
       const L = p.perks[k.id] || 0;
       const R = RARITY[k.rarity];
-      const lv = k.max > 1 && k.max < 99 ? `<span class="lv">${L ? `Lv ${L} → ${L + 1}` : 'New'}</span>` : L ? '' : '<span class="lv">New</span>';
+      const lv = k.evo ? `<span class="lv">${k.from.map(id => PERK_BY_ID[id].name).join(' + ')}</span>`
+        : k.max > 1 && k.max < 99 ? `<span class="lv">${L ? `Lv ${L} → ${L + 1}` : 'New'}</span>` : L ? '' : '<span class="lv">New</span>';
       return `
         <button class="card r-${k.rarity}" data-a="pick" data-i="${i}" style="--rc:${R.color};animation-delay:${i * 0.08}s">
           <span class="rar">${R.name}</span>
@@ -480,7 +557,7 @@ const UI = {
     this.armedAt = performance.now() + 450;
     this.open(`
       <div class="perk-head"><h2>Choose a perk</h2><p class="sub">${title}</p></div>
-      <div class="cards">${cards}</div>
+      <div class="cards ${choices.length > 2 ? 'three' : ''}">${cards}</div>
       ${G.run.rerolls > 0 ? `<button class="btn small blue" data-a="reroll">Reroll (${G.run.rerolls} left)</button>`
         : `<button class="btn small blue" data-a="reroll" ${save.gems < gemRerollCost() ? 'disabled' : ''}>Reroll ${gemTag(gemRerollCost())}</button>`}
       ${owned.length ? `<div class="owned">${owned.map(id => `<span class="mini r-${PERK_BY_ID[id].rarity}"><canvas class="icon" data-icon="${PERK_BY_ID[id].icon}"></canvas>${p.perks[id] > 1 ? `<em>${p.perks[id]}</em>` : ''}</span>`).join('')}</div>` : ''}
@@ -506,6 +583,10 @@ const UI = {
           const k = PERK_BY_ID[id];
           return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${p.perks[id] > 1 ? ` ×${p.perks[id]}` : ''}</b>${perkDesc(k, p.perks[id])}</span></div>`;
         }).join('')}</div>` : '<p class="sub">No perks yet. Clear a room to get one.</p>'}
+        ${(p.relics || []).length ? `<h3>Your relics</h3><div class="perk-list">${p.relics.map(({ id, L }) => {
+          const r = RELIC_BY_ID[id];
+          return `<div class="pl r-${r.rarity}"><canvas class="icon" data-icon="${r.icon}"></canvas><span><b>${r.name} · level ${L}</b>${r.desc(L)}</span></div>`;
+        }).join('')}</div>` : ''}
         <div class="row toggles">
           <button class="toggle ${s.sfx ? 'on' : ''}" data-a="toggle" data-key="sfx" data-stay="1"><span>Sound</span><i></i></button>
           <button class="toggle ${s.music ? 'on' : ''}" data-a="toggle" data-key="music" data-stay="1"><span>Music</span><i></i></button>
@@ -596,6 +677,8 @@ const ACTIONS = {
   },
   upgradeTab: d => UI.upgrades(d.tab),
   quests: () => UI.quests(),
+  relics: d => UI.relics(d.tab),
+  wearRelic: d => { toggleRelic(d.id); const y = UI.root.scrollTop; UI.relics('relics'); UI.root.scrollTop = y; },
   questTab: d => UI.quests(d.tab),
   claimQuest: d => { claimQuest(d.w === '1', +d.i); Sound.play('coin'); UI.quests(); },
   claimChest: d => { claimChest(d.w === '1'); Sound.play('gem'); UI.quests(); },

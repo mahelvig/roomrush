@@ -9,6 +9,8 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
   room 20 is a boss. The Iron Citadel is different: you climb tall fortress rooms past towers
   that run on power cores, and the boss is an escort.
 - The Depths: endless worlds, each harder than the last.
+- Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
+  play. Max both perks of a found recipe in a run and they merge into an evolution.
 - Your weapon fires on its own at the nearest enemy. You shoot faster while standing still.
 - After every room you pick one of two perks: extra shots, fire, poison, frost, lightning,
   curses, companions, shields and more. Rarer perks are stronger.
@@ -26,6 +28,7 @@ music are made with Web Audio (`js/audio.js`).
 | --- | --- |
 | `js/config.js` | Heroes, worlds, enemies, bosses, permanent upgrades |
 | `js/perks.js` | All perks and how they change your stats |
+| `js/relics.js` | Relics, their drops and effects, and perk evolutions |
 | `js/game.js` | Rooms, shots, pickups, camera, drawing the game |
 | `js/enemies.js`, `js/bosses.js` | Enemy behaviour and boss attacks |
 | `js/fortress.js` | The Iron Citadel: fortress rooms, towers, cores, the escort boss |

@@ -37,6 +37,7 @@ const RARITY = {
   rare:      { name: 'Rare',      color: '#47a6ff', weight: 27, rank: 1 },
   epic:      { name: 'Epic',      color: '#b86bff', weight: 9,  rank: 2 },
   legendary: { name: 'Legendary', color: '#ffb321', weight: 2,  rank: 3 },
+  evolution: { name: 'Evolution', color: '#ff6ad5', weight: 0,  rank: 4 },   // merged perks (relics.js)
 };
 
 const HEROES = [

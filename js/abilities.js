@@ -6,7 +6,8 @@
 const abilityLevel = hero => save.abilities[hero.id] || 0;
 // What one volley of the hero's own shots is worth, so abilities grow with the build.
 const abilityPower = p => playerAtk(p) * p.s.dmgMul * (1 + p.s.front) * (1 + p.s.multishot);
-const abilityCooldown = hero => ABILITIES[hero.ability].cd * 0.9 ** abilityLevel(hero);
+// (in a run, Sand Glass makes it shorter: abilityCd in the hero's stats)
+const abilityCooldown = (hero, s) => ABILITIES[hero.ability].cd * 0.9 ** abilityLevel(hero) * (s ? s.abilityCd : 1);
 const abilityReady = () => {
   const p = G.player;
   return !!p && !p.dead && G.state === 'play' && !G.cleared && p.abilityCd <= 0;
@@ -16,7 +17,7 @@ function useAbility() {
   if (!abilityReady()) return false;
   const p = G.player;
   ABILITY_USE[p.hero.ability](p, abilityLevel(p.hero));
-  p.abilityCd = abilityCooldown(p.hero);
+  p.abilityCd = abilityCooldown(p.hero, p.s);
   track('ability');
   return true;
 }
@@ -180,6 +181,12 @@ function drawAbilityFx(ctx, t) {
         fs(ctx, '#e6edf7', 1.2);
       }
       ctx.globalAlpha = 1;
+    } else if (f.kind === 'lance') {   // Laser Lance's beam, fading out
+      const k = f.t / f.max, x2 = f.x + Math.cos(f.a) * f.len, y2 = f.y + Math.sin(f.a) * f.len;
+      ctx.lineCap = 'round';
+      line(ctx, f.x, f.y, x2, y2, `rgba(120,230,255,${0.35 * k})`, 16 * k + 4);
+      line(ctx, f.x, f.y, x2, y2, `rgba(200,250,255,${0.9 * k})`, 6 * k + 2);
+      line(ctx, f.x, f.y, x2, y2, `rgba(255,255,255,${k})`, 2);
     } else if (f.kind === 'turret') {
       drawShadow(ctx, f.x, f.y + 4, 11);
       ctx.save();

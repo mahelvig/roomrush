@@ -58,7 +58,8 @@ function depthCleared() {
   if (d % 5 === 0 && d > (save.depthCleared || 0)) {
     const gems = 10 + d;
     G.run.gems += gems;
-    sub = `Milestone bonus +${gems} gems`;
+    sub = `Milestone bonus +${gems} gems and a relic`;
+    maybeDropRelic('milestone', G.player.x, G.player.y - 30);
   }
   save.depthCleared = Math.max(save.depthCleared || 0, d);
   track('depth');

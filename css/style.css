@@ -613,6 +613,35 @@ header h2 { flex: 1; font-size: 1.7em; }
   border: .1em solid var(--line);
 }
 .r-rare.mini, .pl.r-rare { border-color: #47a6ff; }
+.r-evolution.mini, .pl.r-evolution { border-color: #ff6ad5; }
+.card.r-evolution {
+  background: linear-gradient(#5a2a6a, #2a1d58);
+  animation: cardIn .45s cubic-bezier(.2, 1.4, .4, 1) both, legend 1.6s ease-in-out .5s infinite;
+}
+.cards.three { gap: .45em; }
+.cards.three .card { padding: 1.4em .35em .8em; min-height: 14em; font-size: .9em; }
+.cards.three .card .icon { width: 3.6em; height: 3.6em; }
+
+/* relics */
+.btn.teal { background: linear-gradient(#4fd6c8, #23998f); }
+.worn-strip { display: flex; align-items: center; gap: .45em; padding: .45em .7em; width: 100%; text-align: left; }
+.worn-strip b { font-family: var(--title); font-weight: normal; font-size: 1.05em; flex: 1; }
+.worn-strip .link { color: #7fe8dc; font-size: .85em; }
+.mini.empty { border-style: dashed; opacity: .6; }
+.relic-slots { display: flex; flex-direction: column; align-items: center; gap: .35em; padding: .6em; text-align: center; }
+.relic-slots b { font-family: var(--title); font-weight: normal; font-size: 1.1em; }
+.relic-slots > span { color: var(--muted); font-size: .78em; }
+.slots { display: flex; gap: .6em; }
+.slot { width: 3.4em; height: 3.4em; border-radius: .8em; background: rgba(0, 0, 0, .35); border: .16em solid #a9b6cc; padding: .2em; }
+.slot .icon { width: 100%; height: 100%; display: block; }
+.slot.empty { border-style: dashed; opacity: .55; }
+.slot.r-rare { border-color: #47a6ff; } .slot.r-epic { border-color: #b86bff; } .slot.r-legendary { border-color: #ffb321; }
+.upg.relic.worn { box-shadow: 0 .3em 0 var(--line), inset 0 0 0 .15em #4fd6c8; }
+.upg .pips { display: inline-flex; gap: .2em; vertical-align: middle; margin-left: .25em; }
+.upg .pips i { width: .5em; height: .5em; border-radius: 50%; background: rgba(255, 255, 255, .18); border: .1em solid var(--line); }
+.upg .pips i.on { background: #ffcf3f; }
+.upg .rar-tag { font-style: normal; }
+.upg .icon.unknown { display: flex; align-items: center; justify-content: center; font-family: var(--title); font-size: 1.6em; color: var(--muted); border-radius: .6em; background: rgba(0, 0, 0, .3); }
 .r-epic.mini, .pl.r-epic { border-color: #b86bff; }
 .r-legendary.mini, .pl.r-legendary { border-color: #ffb321; }
 

@@ -20,12 +20,12 @@ function startRun(worldIdx, resume, tier = 0, depth = 0) {
   G.tier = depth || (resume ? resume.tier || 0 : tier);
   G.run = resume || {
     world: worldIdx, tier: G.tier, depth, startDepth: depth, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
-    livesUsed: 0, metaRevive: upgradeLevel('revive') > 0, rerolls: upgradeLevel('reroll'),
+    livesUsed: 0, metaRevive: upgradeLevel('revive') > 0, rerolls: upgradeLevel('reroll'), relics: wornRelics(),
     // starting deeper than depth 1 you start without perks, but with three free picks
     startPicks: upgradeLevel('start') + (depth > 1 ? 3 : 0), hp: null,
   };
   if (depth) { save.depthBest = Math.max(save.depthBest || 0, depth); }
-  G.player = createPlayer(hero, G.run.perks);
+  G.player = createPlayer(hero, G.run.perks, G.run.relics || []);
   G.player.livesUsed = G.run.livesUsed || 0;
   G.helpers = [];
   syncHelpers(G.player);
@@ -174,16 +174,26 @@ function showPerkChoice(reason) {
   G.state = 'perk';
   G.perkShown = true;
   G.perkReason = reason;
-  const minRank = reason === 'room' && G.roomType === 'elite' ? 1 : 0;
-  G.choices = rollPerks(G.player, 2, minRank);
+  G.choices = perkChoices(reason);
   if (!G.choices.length) { finishPerk(); return; }
   UI.perks(G.choices, reason);
+}
+
+// Two cards (three with Lucky Coin after a room); an evolution that is ready takes the first place.
+function perkChoices(reason) {
+  const p = G.player;
+  const minRank = reason === 'room' && G.roomType === 'elite' ? 1 : 0;
+  const n = reason === 'room' && p.s.threeCards ? 3 : 2;
+  const evo = reason === 'room' ? readyEvolutions(p)[0] : null;
+  const list = rollPerks(p, evo ? n - 1 : n, minRank);
+  return evo ? [evo, ...list] : list;
 }
 
 function choosePerk(i) {
   const perk = G.choices[i];
   if (!perk || G.state !== 'perk') return;
   if (RARITY[perk.rarity].rank >= 2) track('epic');
+  if (perk.evo) track('evolve');
   const p = G.player;
   p.perks[perk.id] = (p.perks[perk.id] || 0) + 1;
   refreshStats(p);
@@ -223,8 +233,7 @@ function rerollPerks() {
     G.run.gemRerolls = (G.run.gemRerolls || 0) + 1;
     writeSave();
   }
-  const minRank = G.perkReason === 'room' && G.roomType === 'elite' ? 1 : 0;
-  G.choices = rollPerks(G.player, 2, minRank);
+  G.choices = perkChoices(G.perkReason);
   UI.perks(G.choices, G.perkReason);
 }
 
@@ -465,6 +474,7 @@ function updateShots(dt) {
         FX.burst(b.x, b.y, '#ffffff', 3, { type: 'spark', min: 40, max: 100 });
         continue;
       }
+      if (b.main && relicWallBounce(b)) continue;
       FX.burst(nx, ny, b.glow || '#e8d2a8', 3, { min: 30, max: 90 });
       S.splice(i, 1);
       continue;
@@ -543,6 +553,7 @@ function updateZones(dt, p) {
     if (z.life <= 0) { G.zones.splice(i, 1); continue; }
     if (z.dmg && dist(z.x, z.y, p.x, p.y) < z.r + p.r * 0.5) hurtPlayer(z.dmg);
   }
+  updatePlayerZones(dt);
 }
 
 function updateWarns(dt) {
@@ -627,7 +638,7 @@ function updatePickups(dt, p) {
         G.run.gems += k.value;
         Sound.play('gem');
         FX.text(p.x, p.y - 34, `+${k.value} gem${k.value > 1 ? 's' : ''}`, '#5ff2ff', 11);
-      }
+      } else if (k.kind === 'relic' || k.kind === 'recipe') collectRelic(k, p);
     }
   }
 }
@@ -697,6 +708,7 @@ function drawGame(ctx) {
     const hop = Math.abs(Math.sin(k.t * 5 + k.seed)) * 2;
     if (k.kind === 'coin') drawCoin(ctx, k.x, k.y - hop, k.t, k.seed);
     else if (k.kind === 'heart') drawHeart(ctx, k.x, k.y - hop, 6);
+    else if (k.kind === 'relic' || k.kind === 'recipe') drawRelicPickup(ctx, k, k.y - hop, t);
     else drawGem(ctx, k.x, k.y - hop, 6);
   }
 
@@ -796,6 +808,11 @@ function drawPlayer(ctx, p, t) {
   drawHero(ctx, p.hero, { aim: p.aim, walk: p.walk, moving: p.moving, recoil: p.recoil, t: p.t, ready: p.ready });
   ART.flash = 0;
   ctx.restore();
+  if (p.waterUp) {
+    ctx.beginPath(); ctx.arc(p.x, p.y - 4, 16 + Math.sin(t * 4) * 1.2, 0, TAU);
+    ctx.fillStyle = 'rgba(95,210,255,0.16)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(150,230,255,0.75)'; ctx.lineWidth = 1.6; ctx.stroke();
+  }
   if (p.shieldUp) {
     ctx.beginPath(); ctx.arc(p.x, p.y - 4, 19, 0, TAU);
     ctx.fillStyle = 'rgba(255,229,138,0.12)'; ctx.fill();
