@@ -39,7 +39,7 @@ function addAffixes(e, n) {
 function giveRoomAffixes() {
   const rules = tierAffixes(G.tier);
   for (const e of G.enemies) {
-    if (e.boss) continue;
+    if (e.boss || e.def.harmless) continue;
     if (e.elite) addAffixes(e, rules.elite);
     else if (Math.random() < rules.normal) addAffixes(e, 1);
   }
@@ -90,7 +90,7 @@ function updateChains(e, dt, p) {
     e.chainT = 1;
     e.links = e.links.filter(o => !o.dead && dist(e.x, e.y, o.x, o.y) < CHAIN_LEN);
     const near = G.enemies
-      .filter(o => o !== e && !o.dead && !o.boss && !o.decoy && !e.links.includes(o) && !(o.links && o.links.includes(e)))
+      .filter(o => o !== e && !o.dead && !o.boss && !o.decoy && !o.def.harmless && !e.links.includes(o) && !(o.links && o.links.includes(e)))
       .sort((a, b) => dist2(e.x, e.y, a.x, a.y) - dist2(e.x, e.y, b.x, b.y));
     for (const o of near) {
       if (e.links.length >= 2 || dist(e.x, e.y, o.x, o.y) >= CHAIN_LEN) break;
@@ -122,11 +122,12 @@ function blinkIfHurt(e) {
 }
 
 // Shielded blocks shots from the front; Mirror sends every fifth hit back at you.
-// A Rock Tortoise's shell from the front only lets 30% of the damage through.
-const shellHit = (b, e) => e.def.shell && !e.shellOpen && Math.abs(angleDiff(e.look, Math.atan2(-b.vy, -b.vx))) < 1.05;
+// A Rock Tortoise's shell (or a Shieldbearer's shield) from the front only lets 30% of the damage through.
+// A bomb going off (b.blast) comes from above and gets past both.
+const shellHit = (b, e) => e.def.shell && !e.shellOpen && !b.blast && Math.abs(angleDiff(e.look, Math.atan2(-b.vy, -b.vx))) < 1.05;
 
 function shotBlocked(b, e) {
-  if (e.aff.shielded && Math.abs(angleDiff(e.shieldAng, Math.atan2(-b.vy, -b.vx))) < 0.95) return true;
+  if (e.aff.shielded && !b.blast && Math.abs(angleDiff(e.shieldAng, Math.atan2(-b.vy, -b.vx))) < 0.95) return true;
   if (e.aff.mirror && b.main) {
     e.mirrorN = (e.mirrorN || 0) + 1;
     if (e.mirrorN % 5 === 0) {

@@ -3,10 +3,11 @@
 
 const VIEW_W = 360;               // logical width of the screen, everything scales from this
 const T = 30;                     // tile size
-const COLS = 11, ROWS = 19;       // room interior in tiles
+const COLS = 11, BASE_ROWS = 19;  // room interior in tiles (the Iron Citadel's rooms are taller: setRoomRows)
 const ROOM_X = 15, ROOM_Y = 66;   // top-left corner of the room interior
-const ROOM_W = COLS * T, ROOM_H = ROWS * T;
-const WORLD_W = 360, WORLD_H = ROOM_Y + ROOM_H + 34;
+const ROOM_W = COLS * T;
+const WORLD_W = 360;
+let ROWS = BASE_ROWS, ROOM_H = ROWS * T, WORLD_H = ROOM_Y + ROOM_H + 34;
 const DOOR_X = WORLD_W / 2, DOOR_W = 56;
 const ROOMS_PER_WORLD = 20;
 
@@ -68,6 +69,14 @@ const HEROES = [
     passive: 'Boomerangs fly back and can hit twice', ability: 'gust',
     pal: { skin: '#f5c9a6', main: '#3fb8d6', dark: '#25799a', accent: '#f4f1e6', hair: '#eef6ff', eye: '#2b2140' },
   },
+  {
+    id: 'sapper', name: 'Brick', title: 'The Sapper', cost: 200,
+    hp: 560, atk: 50, interval: 0.74, speed: 110, crit: 0.06,
+    weapon: 'bomb', shot: 'bomb', shotSpeed: 380,
+    vsBoss: 0.85,   // a bomb follows its target and never misses
+    passive: 'Bombs fly over walls and blow up in a small area', ability: 'overdrive',
+    pal: { skin: '#e8b48a', main: '#d0703a', dark: '#8a4520', accent: '#ffcf3f', hair: '#2e2420', eye: '#2b2140' },
+  },
 ];
 const HERO_BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
 
@@ -90,6 +99,10 @@ const ABILITIES = {
   gust: {
     name: 'Gale Burst', cd: 13, icon: 'gust',
     desc: L => `Blast enemies and their shots away from you: ${+(1.5 + 0.3 * L).toFixed(1)}× your shot damage`,
+  },
+  overdrive: {
+    name: 'Overdrive', cd: 18, icon: 'overdrive',
+    desc: L => `Throw bombs twice as fast, even on the run, for ${+(3 + 0.35 * L).toFixed(1)} seconds`,
   },
 };
 
@@ -186,6 +199,22 @@ const WORLDS = [
       sky: '#9ad0f7', skyDeep: '#5d93cc', rock: '#8a7f6e',
     },
   },
+  {
+    // fort: tall rooms you climb to the gate at the top, past towers powered by cores (fortress.js)
+    id: 'citadel', name: 'Iron Citadel', short: 'Citadel', adj: 'Iron', noun: 'Citadel', fort: true,
+    blurb: 'Climb the fortress to its gates. Towers cannot be destroyed, but the cores that power them can.',
+    hpMult: 4.2, dmgMult: 2.4, coinMult: 3.9,
+    enemies: ['ironSoldier', 'crossbowman', 'warhound', 'shieldbearer'],
+    elites: ['warCaptain', 'siegeHound', 'ironWarden'],
+    boss: 'ironHeart',
+    hazards: {},
+    obstacles: ['crate', 'barrel', 'crate', 'sandbags'],
+    music: 'citadel',
+    theme: {
+      bg: '#17151d', outer: '#2a2731', wall: '#4d4a57', wallTop: '#6e6a7a',
+      floorA: '#8e877d', floorB: '#867f75', detail: '#6e675e', metal: '#5a6070', carpet: '#9a2f2a',
+    },
+  },
 ];
 
 // Bullet styles used by enemies.
@@ -203,6 +232,9 @@ const SHOTS = {
   feather:{ kind: 'feather', color: '#f4f1e6', r: 5 },
   zap:    { kind: 'orb',   color: '#ffe55a', r: 6 },
   dark:   { kind: 'orb',   color: '#b45cff', r: 7 },
+  ironBolt: { kind: 'arrow', color: '#ffb36a', r: 4 },
+  rivet:  { kind: 'orb',   color: '#ff7a4a', r: 6 },
+  steam:  { kind: 'orb',   color: '#ffd35a', r: 7 },
 };
 
 // Enemy definitions. hp/dmg are for room 1 of a world with multiplier 1.
@@ -302,6 +334,32 @@ const ENEMIES = {
     fire: { every: 2.6, shots: 3, spread: 0.5, speed: 120, shot: 'rock' },
   },
 
+  // --- Iron Citadel ---
+  ironSoldier: {
+    name: 'Iron Soldier', art: 'soldier', ai: 'chaser', hp: 120, dmg: 70, speed: 66, r: 12, cost: 1, coins: 2,
+    pal: { main: '#8a93a6', dark: '#565e70', light: '#ff5a3a' },
+  },
+  crossbowman: {
+    name: 'Crossbowman', art: 'soldier', ai: 'archer', hp: 100, dmg: 70, speed: 56, r: 12, cost: 1.3, coins: 3, crossbow: true,
+    pal: { main: '#9a7a52', dark: '#5e4a32', light: '#ffb36a' },
+    fire: { every: 2.4, aim: 0.55, shots: 1, spread: 0, speed: 300, shot: 'ironBolt' },
+  },
+  warhound: {
+    name: 'War Hound', art: 'hound', ai: 'charger', hp: 110, dmg: 75, speed: 76, r: 13, cost: 1.4, coins: 3,
+    pal: { main: '#6a6f7e', dark: '#40444f', light: '#ff5a3a' },
+    dash: { every: 2.4, windup: 0.5, speed: 400, dur: 0.5, count: 1 },
+  },
+  shieldbearer: {
+    // its big shield blocks most of a shot from the front (like the tortoise's shell); it turns slowly
+    name: 'Shieldbearer', art: 'shieldbearer', ai: 'chaser', hp: 170, dmg: 75, speed: 44, r: 14, cost: 1.8, coins: 4, shell: true, turn: 1.6,
+    pal: { main: '#8a93a6', dark: '#565e70', light: '#ffcf3f' },
+  },
+  // A power core: towers stay on while it stands (fortress.js).
+  core: {
+    name: 'Power Core', art: 'core', ai: 'core', hp: 90, dmg: 0, speed: 0, r: 13, cost: 0, coins: 0, harmless: true,
+    pal: { main: '#3fd1ff', dark: '#1f7fa8', light: '#ffffff' },
+  },
+
   // --- Frozen Crypt ---
   skeleton: {
     name: 'Skeleton', art: 'skeleton', ai: 'chaser', hp: 110, dmg: 65, speed: 64, r: 12, cost: 1, coins: 2,
@@ -389,6 +447,20 @@ Object.assign(ENEMIES, {
     name: 'Ancient Gargoyle', r: 20, hpMult: 9, dash: { count: 3, windup: 0.45 }, wallRing: 8,
     pal: { main: '#6f6a80', dark: '#45405a', light: '#ff8a3a' },
   }),
+  // the Iron Citadel's guardians walk the command rooms (every fifth room)
+  siegeHound: eliteOf('warhound', {
+    name: 'Siege Hound', r: 20, hpMult: 9, dash: { count: 3, windup: 0.45 }, wallRing: 10,
+    pal: { main: '#545a6a', dark: '#30343e', light: '#ffb02e' },
+  }),
+  warCaptain: eliteOf('crossbowman', {
+    name: 'War Captain', r: 18, hpMult: 8, fire: { every: 1.8, aim: 0.5, shots: 5, spread: 0.6 },
+    pal: { main: '#b0452e', dark: '#6e2a1c', light: '#ffcf3f' },
+  }),
+  ironWarden: eliteOf('ironSoldier', {
+    name: 'Iron Warden', art: 'warden', ai: 'jumper', r: 22, hpMult: 9, speed: 40,
+    jump: { every: 2.8, dur: 0.8, radius: 56, ring: 14, speed: 125, shot: 'rivet' },
+    pal: { main: '#6f7890', dark: '#424a5e', light: '#ff7a3a' },
+  }),
   // Shield crystals a boss raises at 60% and 25% HP (bosses.js). HP is set from the boss.
   crystal: {
     name: 'Shield Crystal', art: 'crystal', ai: 'crystal', hp: 1, dmg: 0, speed: 0, r: 13, cost: 0, coins: 0, harmless: true,
@@ -422,6 +494,14 @@ const BOSSES = {
     pal: { main: '#6b7a99', dark: '#3e4866', light: '#ffe55a' },
     moves: ['gale', 'fan', 'charge', 'ring', 'summon', 'spiral'], sig: 'tempest',
     shot: 'feather', altShot: 'zap', summon: ['harpy', 'windSpirit'], flying: true,
+  },
+  // Sealed until the siege golem breaks its shield (fortress.js); no crystals, and below 25% it
+  // tears loose and flies about.
+  ironHeart: {
+    name: 'The Iron Heart', art: 'ironHeart', hp: 92000, dmg: 300, speed: 46, r: 32, coins: 480, gems: 5,
+    pal: { main: '#b0452e', dark: '#5e2418', light: '#ffb02e' },
+    moves: ['spiral', 'fan', 'ring', 'summon', 'barrage'], sig: 'overload', heart: true, noCrystals: true,
+    shot: 'rivet', altShot: 'steam', summon: ['ironSoldier', 'crossbowman'],
   },
 };
 // Phase lines: below these shares of HP the boss raises a crystal shield and gets angrier.

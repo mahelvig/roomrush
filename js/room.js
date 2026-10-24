@@ -7,7 +7,19 @@ const room = {
   seed: 1,
   type: 'normal',
   bg: null,
+  fort: null,     // towers, cores, chests and gates of an Iron Citadel room (fortress.js)
 };
+
+// Rooms are BASE_ROWS tall, except in the Iron Citadel. Everything that depends on the height
+// (the world size, the path-finding grid) follows.
+function setRoomRows(n) {
+  ROWS = n;
+  ROOM_H = ROWS * T;
+  WORLD_H = ROOM_Y + ROOM_H + 34;
+  NAV_H = ROOM_H / NAV;
+  room.grid = new Uint8Array(COLS * ROWS);
+  room.nav = {};
+}
 
 const tileIndex = (c, r) => r * COLS + c;
 const colOf = x => Math.floor((x - ROOM_X) / T);
@@ -78,6 +90,9 @@ const PATTERNS = [
 ];
 
 function generateRoom(world, idx, type) {
+  room.fort = null;
+  if (world.fort) { generateFortRoom(world, idx, type); return; }
+  setRoomRows(BASE_ROWS);
   // a depth looks the same for everyone: its rooms come from its number
   room.seed = world.depth ? world.depth * 1000 + idx : (Math.random() * 1e9) | 0;
   room.type = type;
@@ -318,7 +333,8 @@ function rayLength(x, y, ang, max = 800) {
 // asks for it and rebuilt when the target has moved.
 
 const NAV = 5;
-const NAV_W = (COLS * T) / NAV, NAV_H = (ROWS * T) / NAV;
+const NAV_W = (COLS * T) / NAV;
+let NAV_H = (ROWS * T) / NAV;
 const NAV_RADII = [13, 14, 16, 18, 19, 21, 26];   // size classes: the biggest enemy radius in each
 const NAV_SEED = 26;                              // the map starts at open cells this close to the target
 const NAV_LOOK = 8;                               // how many cells ahead an enemy aims

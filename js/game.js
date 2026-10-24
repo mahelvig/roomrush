@@ -15,7 +15,7 @@ const G = {
 function startRun(worldIdx, resume, tier = 0, depth = 0) {
   const hero = HERO_BY_ID[resume ? resume.hero : save.hero] || HEROES[0];
   depth = resume ? resume.depth || 0 : depth;
-  G.worldIdx = depth ? WORLDS.length - 1 : worldIdx;
+  G.worldIdx = depth ? DEPTH_WORLDS.length - 1 : worldIdx;
   G.world = depth ? depthWorld(depth) : WORLDS[worldIdx];
   G.tier = depth || (resume ? resume.tier || 0 : tier);
   G.run = resume || {
@@ -58,9 +58,10 @@ function enterRoom(idx) {
   }
   rebuildRoomBG();
   G.enemies = []; G.shots = []; G.eshots = []; G.pickups = []; G.zones = []; G.warns = []; G.strikes = []; G.abilityFx = [];
+  G.golem = null;
   FX.clear();
   const p = G.player;
-  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0 });
+  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0, overdriveT: 0 });
   p.volleys.length = 0;
   for (const h of G.helpers) { h.x = p.x; h.y = p.y; }
   Object.assign(G, { cleared: false, clearT: 0, perkShown: false, doorOpen: false, doorT: 0, boss: null, bossDead: false, bossDeadT: 0, winShown: false, gale: null, galeDir: null });
@@ -84,6 +85,7 @@ function enterRoom(idx) {
 function beginRoom() {
   G.state = 'play';
   G.perkShown = false;
+  G.roomT = 0;
   spawnRoomEnemies();
   const w = G.world;
   if (G.roomType === 'boss') {
@@ -92,6 +94,8 @@ function beginRoom() {
     UI.bossBar(name);
     Sound.play('boss');
     FX.kick(6);
+  } else if (G.roomType === 'elite' && w.fort) {
+    UI.banner('Command Room', 'Break the three cores', 'elite');
   } else if (G.roomType === 'elite') {
     UI.banner('Elite Room', ENEMIES[G.enemies[0].type].name, 'elite');
   } else if (w.depth && G.roomIdx === 1) {
@@ -100,7 +104,15 @@ function beginRoom() {
     UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name + (G.tier ? ` · ${tierName(G.tier)}` : '') : '', '');
   }
   if (G.roomIdx === 1 && !save.seenHint) UI.hint(isTouch ? 'Drag anywhere to move. Stand still to shoot faster!' : 'Move with WASD or the arrow keys. Stand still to shoot faster!');
-  else if (!save.seenAbilityHint) {
+  else if (w.fort && G.roomType === 'boss' && !save.seenEscortHint) {
+    save.seenEscortHint = true;
+    writeSave();
+    UI.hint('Break the two cores by each gate to let the golem through. Stand next to it to repair it.');
+  } else if (w.fort && !save.seenFortHint) {
+    save.seenFortHint = true;
+    writeSave();
+    UI.hint('Climb to the gate at the top. Shoot a glowing core to switch its towers off.');
+  } else if (!save.seenAbilityHint) {
     save.seenAbilityHint = true;
     writeSave();
     const a = ABILITIES[G.player.hero.ability];
@@ -110,6 +122,7 @@ function beginRoom() {
 
 function spawnRoomEnemies() {
   const w = G.world, idx = roomLevel(), p = G.player;
+  if (w.fort) { spawnFort(); return; }
   if (G.roomType === 'boss') { spawnBoss(w.boss); return; }
   const types = enemyPool(w, idx);
   let budget = DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4;
@@ -328,6 +341,7 @@ function updateGame(dt) {
   if (G.state !== 'play') return;
   G.time += dt;
   G.run.time += dt;
+  G.roomT = (G.roomT || 0) + dt;
   const p = G.player;
   updatePlayer(p, dt);
   if (G.state !== 'play') return;
@@ -343,6 +357,7 @@ function updateGame(dt) {
   updateWarns(dt);
   updateStrikes(dt, p);
   updatePickups(dt, p);
+  if (room.fort) updateFort(dt, p);
   FX.update(dt);
   G.enemies = G.enemies.filter(e => !e.dead);
   if (G.boss && !G.bossDead) UI.bossHp(G.boss.hp / G.boss.maxHp, G.boss.shielded);
@@ -363,8 +378,8 @@ function updateGame(dt) {
       if (G.bossDeadT > 0.5) G.cleared = true;
       if (G.bossDeadT > 3.2 && !G.winShown) victory();
     }
-  } else if (!G.cleared && G.enemies.length === 0) {
-    onRoomCleared();
+  } else if (!G.cleared && !room.fort && G.enemies.length === 0) {
+    onRoomCleared();   // (a fortress room is done at its gate instead: fortReached)
   } else if (G.cleared && !G.perkShown) {
     G.clearT += dt;
     if (G.clearT > 1.8 || (G.clearT > 0.8 && G.pickups.length === 0)) showPerkChoice('room');
@@ -413,6 +428,7 @@ function updateShots(dt) {
     const b = S[i];
     b.life -= dt;
     if (b.life <= 0) { S.splice(i, 1); continue; }
+    if (b.lob) { if (updateBomb(b, dt)) S.splice(i, 1); continue; }   // Brick's bombs fly over everything
     if (b.homing) {
       if (!b.target || !canTarget(b.target)) b.target = nearestEnemy(b.x, b.y, b.hit);
       if (b.target) {
@@ -511,6 +527,7 @@ function updateEnemyShots(dt, p) {
       S.splice(i, 1);
       continue;
     }
+    if (G.golem && golemBlocks(b)) { S.splice(i, 1); continue; }
     const rr = b.r + p.r - 3;
     if (dist2(b.x, b.y, p.x, p.y) < rr * rr) {
       if (hurtPlayer(b.dmg) && b.slow) p.slowT = 1.5;
@@ -546,6 +563,7 @@ function updateStrikes(dt, p) {
     G.strikes.splice(i, 1);
     if (s.owner === 'enemy') {
       if (dist(s.x, s.y, p.x, p.y) < s.r + p.r * 0.6) hurtPlayer(s.dmg);
+      if (G.golem) golemStrike(s);
       if (s.kind === 'root') {
         G.zones.push({ x: s.x, y: s.y, r: s.r, life: 0.6, max: 0.6, dmg: 0, kind: 'root' });
         FX.burst(s.x, s.y, ['#8a5a36', '#5fbf4a'], s.quiet ? 1 : 5, { min: 40, max: 110 });
@@ -621,7 +639,8 @@ function cameraTarget() {
   const min = -G.hudH, max = WORLD_H - vh + 6;
   if (max <= min) return -(G.hudH + (vh - G.hudH - WORLD_H) / 2);
   const p = G.player;
-  return clamp((p ? p.y : WORLD_H / 2) - vh * 0.56, min, max);
+  // climbing a fortress room you want to see more of what is ahead (above you)
+  return clamp((p ? p.y : WORLD_H / 2) - vh * (room.fort ? 0.64 : 0.56), min, max);
 }
 function updateCamera(dt) {
   G.camY += (cameraTarget() - G.camY) * Math.min(1, dt * 7);
@@ -635,7 +654,7 @@ function rebuildRoomBG() {
 // ---------- drawing ----------
 
 const ART_TOP = { treant: 2.4, magmaKing: 1.5, lich: 2, stump: 1.6, mushroom: 1.3, mage: 1.8, goblin: 1.6, skeleton: 1.7, yeti: 1.3, golem: 1.2,
-  sentinel: 1.6, gargoyle: 1.5, shaman: 2.1, tortoise: 1.1, harpy: 1.6, roc: 1.7 };
+  sentinel: 1.6, gargoyle: 1.5, shaman: 2.1, tortoise: 1.1, harpy: 1.6, roc: 1.7, soldier: 1.75, hound: 1.1, shieldbearer: 1.6, warden: 1.7, core: 1.9 };
 
 function drawGame(ctx) {
   const w = G.world, t = G.time, p = G.player;
@@ -647,6 +666,7 @@ function drawGame(ctx) {
   if (room.bg) ctx.drawImage(room.bg, 0, 0, WORLD_W, WORLD_H);
   drawTileFx(ctx, w, t);
   drawDoor(ctx, w, G.doorT, t);
+  if (room.fort) drawFortGround(ctx, t);
 
   // ground layer: puddles, warnings
   for (const z of G.zones) drawZone(ctx, z, t);
@@ -704,16 +724,18 @@ function drawGame(ctx) {
     ctx.restore();
   }
 
-  // entities sorted by depth
-  const list = G.enemies.slice().sort((a, b) => (a.y + (a.flying ? 1000 : 0)) - (b.y + (b.flying ? 1000 : 0)));
+  // entities sorted by depth (with a fortress's towers and golem among them)
+  const list = room.fort ? G.enemies.concat(fortDrawables()) : G.enemies.slice();
+  list.sort((a, b) => (a.y + (a.flying ? 1000 : 0)) - (b.y + (b.flying ? 1000 : 0)));
   let playerDrawn = p.dead;
   for (const e of list) {
     if (!playerDrawn && !e.flying && e.y > p.y) { drawPlayer(ctx, p, t); playerDrawn = true; }
+    if (e.fortDraw) { e.fortDraw(ctx, t); continue; }
     if (!playerDrawn && e.flying) { drawPlayer(ctx, p, t); playerDrawn = true; }
     if (e.elite || e.boss) glow(ctx, e.x, e.y - (e.z || 0), e.r * 2.6, e.boss ? (e.phase2 ? '#ff5a6e' : e.pal.light) : '#ffcf3f', 0.3 + Math.sin(t * 4) * 0.08);
     if (e.affList.length) drawAffixAura(ctx, e, t);
     drawEnemy(ctx, e, t);
-    if (e.boss && e.shielded) drawBossShield(ctx, e, t);
+    if (e.shielded && (e.boss || e.type === 'core')) drawBossShield(ctx, e, t);
     if (e.status.freeze > 0) {
       rrect(ctx, e.x - e.r * 1.1, e.y - e.r * 1.4, e.r * 2.2, e.r * 2.2, 5);
       ctx.fillStyle = 'rgba(170,230,255,0.45)'; ctx.fill();
@@ -731,6 +753,7 @@ function drawGame(ctx) {
   if (!playerDrawn) drawPlayer(ctx, p, t);
   for (const h of G.helpers) drawHelper(ctx, h, t);
   drawAbilityFx(ctx, t);
+  if (room.fort) drawFortTop(ctx, t);
 
   for (const b of G.shots) drawPlayerShot(ctx, b, t);
   for (const b of G.eshots) drawEnemyShot(ctx, b, t);
@@ -765,6 +788,7 @@ function drawGame(ctx) {
 
 function drawPlayer(ctx, p, t) {
   if (p.dead) return;
+  if (p.overdriveT > 0) glow(ctx, p.x, p.y - 4, 28, '#ffb02e', 0.45 + Math.sin(t * 14) * 0.12);
   ctx.save();
   ctx.translate(p.x, p.y);
   if (p.invuln > 0 && p.flash <= 0 && Math.floor(t * 14) % 2 === 0 && p.invuln < 0.9) ctx.globalAlpha = 0.45;

@@ -44,12 +44,17 @@ function canTarget(e) {
   return !e.dead && e.spawnT <= 0 && !e.hidden && !e.statue;
 }
 
+// In a tall fortress room only what is roughly on screen counts.
+const FORT_AIM = 400;
+
 function findTarget(p) {
   let best = null, bestD = Infinity, bestBlocked = null, bestBD = Infinity, shielded = null;
+  const maxD = room.fort ? FORT_AIM * FORT_AIM : Infinity;
   for (const e of G.enemies) {
     if (!canTarget(e)) continue;
-    if (e.shielded) { shielded = e; continue; }   // a shielded boss only when nothing else is left
     const d = dist2(p.x, p.y, e.x, e.y);
+    if (d > maxD) continue;
+    if (e.shielded) { shielded = e; continue; }   // a shielded boss only when nothing else is left
     if (lineClear(p.x, p.y, e.x, e.y, false)) {
       if (d < bestD) { bestD = d; best = e; }
     } else if (d < bestBD) { bestBD = d; bestBlocked = e; }
@@ -61,7 +66,9 @@ function updatePlayer(p, dt) {
   const s = p.s;
   p.t += dt;
   const v = G.state === 'play' ? Input.vector() : { x: 0, y: 0, mag: 0 };
-  const spd = s.speed * (p.slowT > 0 ? 0.6 : 1);
+  p.overdriveT = Math.max(0, (p.overdriveT || 0) - dt);
+  const od = p.overdriveT > 0;   // Brick's Overdrive: double fire rate, no slowdown
+  const spd = s.speed * (p.slowT > 0 && !od ? 0.6 : 1);
   const tx = v.x * v.mag * spd, ty = v.y * v.mag * spd;
   const onIce = tileAt(p.x, p.y + 4) === TILE.ICE;
   const k = 1 - Math.exp(-(onIce ? 2.4 : 20) * dt);
@@ -123,7 +130,8 @@ function updatePlayer(p, dt) {
   }
 
   // shooting (slower while moving)
-  p.cd -= dt * s.rate * (p.moving ? s.moveRate : 1);
+  p.cd -= dt * s.rate * (od ? 2 : p.moving ? s.moveRate : 1);
+  if (od && Math.random() < dt * 14) FX.burst(p.x + rand(-8, 8), p.y - rand(0, 16), ['#ffcf3f', '#ff8a3a'], 1, { angle: -Math.PI / 2, spread: 0.8, min: 20, max: 60, life: 0.4 });
   if (p.cd <= 0) {
     if (p.target && G.state === 'play' && !G.cleared) {
       fireVolley(p, p.aim);
@@ -163,6 +171,7 @@ function fireVolley(p, ang) {
   }
   for (let i = 0; i < s.rear; i++) dirs.push([ang + Math.PI + (s.rear > 1 ? (i ? 0.2 : -0.2) : 0), 0]);
   const glowC = elementGlow(s);
+  if (p.hero.shot === 'bomb') { throwVolley(p, ang, dirs, dmg, glowC); return; }
   for (const [a, off] of dirs) {
     const px = -Math.sin(a) * off, py = Math.cos(a) * off;
     G.shots.push({
@@ -180,7 +189,83 @@ function fireVolley(p, ang) {
   Sound.play(p.hero.shot === 'arrow' ? 'shoot' : p.hero.shot === 'orb' ? 'orb' : 'bolt');
 }
 
-// Meteor Shower and Thunderstorm perks.
+// ---------- Brick's bombs ----------
+// Thrown in an arc over walls and enemies to a spot, and blowing up there. The bomb aimed at the
+// target follows it in the air; side-by-side bombs land beside it, the others along their own way.
+
+function throwVolley(p, ang, dirs, dmg, glowC) {
+  const t = p.target;
+  const tx = t ? t.x : p.x + Math.cos(ang) * 200, ty = t ? t.y : p.y + Math.sin(ang) * 200;
+  const D = Math.min(380, dist(p.x, p.y, tx, ty));
+  for (const [a, off] of dirs) {
+    const ahead = Math.abs(angleDiff(a, ang)) < 0.01;
+    let x1, y1;
+    if (ahead) { x1 = tx - Math.sin(a) * off * 2.5; y1 = ty + Math.cos(a) * off * 2.5; }
+    else { x1 = p.x + Math.cos(a) * D; y1 = p.y + Math.sin(a) * D; }
+    throwBomb(p, p.x + Math.cos(ang) * 8, p.y - 6, clamp(x1, ROOM_X + 6, ROOM_X + ROOM_W - 6), clamp(y1, ROOM_Y + 6, ROOM_Y + ROOM_H - 6), dmg,
+      { follow: ahead && !off ? t : null, glow: glowC });
+  }
+  if (G.shots.length > MAX_SHOTS) G.shots.splice(0, G.shots.length - MAX_SHOTS);
+  p.recoil = 1;
+  Sound.play('toss');
+}
+
+function throwBomb(p, x0, y0, x1, y1, dmg, o = {}) {
+  const d = dist(x0, y0, x1, y1);
+  G.shots.push({
+    x: x0, y: y0, vx: 0, vy: 0, z: 0, r: 4, size: p.s.size, dmg, kind: 'bomb', glow: o.glow, blast: true, main: true,
+    lob: { x0, y0, x1, y1, t: 0, dur: clamp(d / 380, 0.28, 0.75), h: 14 + d * 0.12 },
+    follow: o.follow || null, pierce: p.s.pierce, bounce: o.bounce ?? p.s.wallBounce, ric: o.ric ?? p.s.ricochet, hit: o.hit ? o.hit.slice() : [], life: 3,
+  });
+}
+
+// Moves a bomb along its arc; true once it has gone off.
+function updateBomb(b, dt) {
+  const L = b.lob;
+  L.t += dt;
+  if (b.follow && canTarget(b.follow)) {
+    const k = Math.min(1, dt * 10);
+    L.x1 += (b.follow.x - L.x1) * k;
+    L.y1 += (b.follow.y - L.y1) * k;
+  }
+  const k = Math.min(1, L.t / L.dur);
+  b.x = lerp(L.x0, L.x1, k);
+  b.y = lerp(L.y0, L.y1, k);
+  b.z = Math.sin(k * Math.PI) * L.h;
+  if (k < 1) return false;
+  bombBlast(b);
+  return true;
+}
+
+// Everything in the blast takes the full hit (Piercing Shot makes the blast bigger). With Ricochet a
+// smaller bomb hops on to the next enemy, with Bouncy Shots the bomb bounces on and goes off again.
+function bombBlast(b) {
+  const p = G.player, L = b.lob;
+  const R = 30 * (b.size || 1) * (1 + 0.15 * b.pierce) * (p.overdriveT > 0 ? 1.25 : 1);
+  FX.ring(b.x, b.y, R, b.glow || '#ffb02e', 0.3, 4);
+  FX.burst(b.x, b.y, [b.glow || '#ff8a2a', '#ffd35a', '#ffffff'], 9, { min: 50, max: 150 });
+  FX.smoke(b.x, b.y, 'rgba(90,80,90,0.5)', 2, 6);
+  Sound.play('boom');
+  for (const e of G.enemies) {
+    if (!canTarget(e) || b.hit.includes(e.id) || dist(b.x, b.y, e.x, e.y - (e.z || 0)) > R + e.r) continue;
+    const a = angleTo(b.x, b.y, e.x, e.y);
+    b.vx = Math.cos(a) * 300; b.vy = Math.sin(a) * 300;   // (for the knockback: away from the blast)
+    shotHits(b, e);
+    b.hit.push(e.id);
+  }
+  if (b.ric > 0) {
+    const next = nearestEnemy(b.x, b.y, b.hit, 180);
+    if (next) throwBomb(p, b.x, b.y, next.x, next.y, b.dmg * 0.8, { follow: next, glow: b.glow, ric: b.ric - 1, bounce: 0 });
+  }
+  if (b.bounce > 0) {   // (it only hurts what the first blast missed)
+    const a = Math.atan2(L.y1 - L.y0, L.x1 - L.x0);
+    const x = clamp(b.x + Math.cos(a) * 55, ROOM_X + 6, ROOM_X + ROOM_W - 6), y = clamp(b.y + Math.sin(a) * 55, ROOM_Y + 6, ROOM_Y + ROOM_H - 6);
+    throwBomb(p, b.x, b.y, x, y, b.dmg * 0.6, { glow: b.glow, ric: 0, bounce: b.bounce - 1, hit: b.hit });
+  }
+}
+
+// Meteor Shower and Thunderstorm perks (in a fortress room only on what is near you).
+const skyTargets = p => G.enemies.filter(e => canTarget(e) && (!room.fort || dist2(p.x, p.y, e.x, e.y) < 450 * 450));
 function updateSkyAttacks(p, dt) {
   const s = p.s;
   if (G.cleared) return;
@@ -188,7 +273,7 @@ function updateSkyAttacks(p, dt) {
     p.meteorT -= dt;
     if (p.meteorT <= 0) {
       p.meteorT = 6 - s.meteor * 1.2;
-      const targets = G.enemies.filter(canTarget);
+      const targets = skyTargets(p);
       if (targets.length) {
         const e = pick(targets);
         G.strikes.push({ x: e.x, y: e.y, r: 42, t: 0.7, max: 0.7, dmg: playerAtk(p) * 1.8, owner: 'player', kind: 'meteor' });
@@ -199,7 +284,7 @@ function updateSkyAttacks(p, dt) {
     p.stormT -= dt;
     if (p.stormT <= 0) {
       p.stormT = 3.2 - s.storm * 0.6;
-      const targets = shuffle(G.enemies.filter(canTarget)).slice(0, s.storm + 1);
+      const targets = shuffle(skyTargets(p)).slice(0, s.storm + 1);
       for (const e of targets) {
         FX.bolt(e.x + rand(-30, 30), e.y - 220, e.x, e.y, '#ffe55a', 2.5);
         FX.burst(e.x, e.y, ['#ffe55a', '#ffffff'], 8, { type: 'spark', min: 60, max: 180 });

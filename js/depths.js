@@ -16,6 +16,8 @@ const DEPTH_BOSS_AFFIXES = ['fast', 'toxic', 'frost', 'mirror', 'blinking'];
 
 // The Depths open (and are as tough as) Frozen Crypt, world 3, whatever worlds come after it.
 const DEPTH_BASE = 'crypt';
+// Depths are made from the worlds with ordinary rooms (not the Iron Citadel's fortress climbs).
+const DEPTH_WORLDS = WORLDS.filter(w => !w.fort);
 const depthsUnlocked = () => (save.tiers[DEPTH_BASE] ?? -1) >= 0;
 // Where a run may start: depth 1, or every fifth depth reached so far.
 const depthStarts = () => [1, ...Array.from({ length: Math.floor((save.depthBest || 0) / 5) }, (_, i) => (i + 1) * 5)];
@@ -24,7 +26,7 @@ const worldMod = id => !!(G.world.mod && G.world.mod.id === id);
 function depthWorld(depth) {
   const rng = makeRng(depth * 7919 + 101);
   const roll = list => list[Math.floor(rng() * list.length)];
-  const env = roll(WORLDS), foe = roll(WORLDS), bossFrom = roll(WORLDS);
+  const env = roll(DEPTH_WORLDS), foe = roll(DEPTH_WORLDS), bossFrom = roll(DEPTH_WORLDS);
   const mod = roll(DEPTH_MODS), bossAffix = roll(DEPTH_BOSS_AFFIXES);
   const last = WORLDS.find(w => w.id === DEPTH_BASE);
   return Object.assign({}, env, {

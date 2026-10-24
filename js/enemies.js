@@ -216,7 +216,9 @@ const AI = {
 
   chaser(e, dt, p) {
     walkTo(e, p.x, p.y, e.speed * e.slowK, dt);
-    e.look = angleTo(e.x, e.y, p.x, p.y);
+    // a Shieldbearer turns its shield after you slowly: get round it
+    if (e.def.turn) e.look += clamp(angleDiff(e.look, angleTo(e.x, e.y, p.x, p.y)), -e.def.turn * dt, e.def.turn * dt);
+    else e.look = angleTo(e.x, e.y, p.x, p.y);
     const pu = e.def.pulse;
     if (pu) {
       e.cd -= dt;
@@ -494,6 +496,11 @@ const AI = {
     e.look = angleTo(e.x, e.y, p.x, p.y);
   },
 
+  // an Iron Citadel power core: the same, its towers do the fighting (fortress.js)
+  core(e, dt, p) {
+    e.look = angleTo(e.x, e.y, p.x, p.y);
+  },
+
   // the Lich's illusions: shoot, take no damage, fade after a while
   decoy(e, dt, p) {
     e.look = angleTo(e.x, e.y, p.x, p.y);
@@ -548,6 +555,25 @@ function updateEnemy(e, dt, p) {
     if (st.poison <= 0) st.poisonDps = 0;
   }
   if (e.dead) return;
+  // a guard in a fortress room sleeps until you come near (or hit it)
+  if (e.asleep) {
+    if (dist2(e.x, e.y, p.x, p.y) > 300 * 300 && e.hp >= e.maxHp) return;
+    e.asleep = false;
+    FX.text(e.x, e.y - e.r - 14, '!', '#ff5a5a', 15, { pop: 0.5 });
+  }
+  // a command room's guardian walks its rounds until you come near (or hurt it)
+  if (e.patrol) {
+    if (dist2(e.x, e.y, p.x, p.y) > 220 * 220 && e.hp >= e.maxHp) {
+      if (!e.dest || dist(e.x, e.y, e.dest.x, e.dest.y) < 10) e.dest = randomOpenSpot({ fromX: e.x, fromY: e.y, minDist: 60, maxDist: 200, fit: e.r });
+      walkTo(e, e.dest.x, e.dest.y, e.speed * 0.6, dt);
+      e.look = angleTo(e.x, e.y, e.dest.x, e.dest.y);
+      resolveTiles(e, true);
+      return;
+    }
+    e.patrol = false;
+    e.dest = null;
+    FX.text(e.x, e.y - e.r - 14, '!', '#ff5a5a', 16, { pop: 0.5 });
+  }
   st.slow = Math.max(0, st.slow - dt);
   st.curse = Math.max(0, st.curse - dt);
   if (st.freeze > 0) { st.freeze -= dt; return; }
@@ -578,7 +604,8 @@ function updateEnemy(e, dt, p) {
 
 function hurtEnemy(e, amount, o = {}) {
   if (e.dead || e.spawnT > 0) return;
-  if (e.decoy || e.statue) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
+  // (a shielded command-room core takes nothing from anything; a boss's shield is handled in bossTakeHit)
+  if (e.decoy || e.statue || (e.shielded && !e.boss)) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
   const p = G.player;
   let d = amount;
   if (e.status.curse > 0) d *= 1 + 0.2 * p.s.curse;
@@ -693,6 +720,7 @@ function killEnemy(e) {
   if (e.elite) FX.kick(6);
 
   if (e.aff.explosive) affixExplode(e);
+  if (e.def.ai === 'core') coreDown(e);
 
   // loot (summoned helpers and boss crystals give none)
   if (!e.noLoot) {

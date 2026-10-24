@@ -50,6 +50,11 @@ function startShieldPhase(e) {
   FX.ring(e.x, e.y, 140, '#ff5a6e', 0.6, 8);
   FX.kick(9);
   Sound.play('boss');
+  if (e.def.noCrystals) {   // the Iron Heart: no shield here, and in the last phase it breaks free
+    e.shielded = false;
+    if (e.phase3) heartBreaksFree(e);
+    return;
+  }
   // three crystals spread round the room hold the shield up
   const spots = [[ROOM_X + 55, ROOM_Y + ROOM_H * 0.42], [ROOM_X + ROOM_W - 55, ROOM_Y + ROOM_H * 0.42], [DOOR_X, ROOM_Y + ROOM_H * 0.78]];
   e.crystals = spots.map(([x, y]) => {
@@ -92,12 +97,13 @@ function updateBoss(e, dt, p) {
   if (e.state !== 'move' || e.move !== 'gale') G.gale = G.galeDir = null;
   e.slowK = e.status.slow > 0 ? 0.8 : 1;
   if (e.shieldDue) { e.shieldDue = false; startShieldPhase(e); }
-  if (e.shielded && e.crystals.every(c => c.dead)) breakShield(e);
+  if (e.shielded && !e.def.noCrystals && e.crystals.every(c => c.dead)) breakShield(e);
   if (e.state === 'intro') {
     e.t -= dt;
     if (e.t <= 0) { e.state = 'idle'; e.t = 0.6; }
     return;
   }
+  if (e.sealed) return;   // the Iron Heart waits behind its shield for the golem (fortress.js)
   e.fightT += dt;
   if (e.fightT > BOSS_FURY_AT && !e.fury) {
     FX.text(e.x, e.y - e.r - 30, 'FURY!', '#ff5a6e', 18, { life: 1.6, pop: 0.6, vy: -30 });
@@ -114,10 +120,11 @@ function updateBoss(e, dt, p) {
   if (e.state === 'idle') {
     e.wanderT = (e.wanderT || 0) - dt;
     if (!e.dest || e.wanderT <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 10) {
-      e.dest = { x: rand(ROOM_X + 70, ROOM_X + ROOM_W - 70), y: rand(ROOM_Y + 80, ROOM_Y + ROOM_H * 0.5) };
+      // (the Iron Heart's room is very tall: it keeps to its own hall at the top)
+      e.dest = { x: rand(ROOM_X + 70, ROOM_X + ROOM_W - 70), y: rand(ROOM_Y + 80, e.def.heart ? ROOM_Y + 330 : ROOM_Y + ROOM_H * 0.5) };
       e.wanderT = 2.2;
     }
-    walk(e, angleTo(e.x, e.y, e.dest.x, e.dest.y), e.speed * (e.phase2 ? 1.4 : 1) * e.slowK, dt);
+    if (!e.def.heart || e.free) walk(e, angleTo(e.x, e.y, e.dest.x, e.dest.y), e.speed * (e.phase2 ? 1.4 : 1) * e.slowK, dt);
     e.t -= dt;
     if (e.t <= 0) startBossMove(e);
     return;

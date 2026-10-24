@@ -146,7 +146,7 @@ function drawHero(ctx, hero, st) {
   if (behind) drawHeroWeapon(ctx, hero, st, sx);
 
   // cape
-  if (hero.weapon !== 'blaster') {
+  if (hero.weapon !== 'blaster' && hero.weapon !== 'bomb') {
     ctx.beginPath();
     ctx.moveTo(-6, -4);
     ctx.quadraticCurveTo(-sx * 12, 4 + Math.sin(st.t * 6) * 1.5, -sx * 8, 9);
@@ -158,6 +158,7 @@ function drawHero(ctx, hero, st) {
   ell(ctx, 0, 2, 8, 7.4); fs(ctx, P.main);
   ell(ctx, 0, 5, 7.2, 1.8); fs(ctx, P.accent, 1.4);
   shine(ctx, -3, -1, 2.5, 1.6, 0.35);
+  if (hero.weapon === 'bomb') oline(ctx, -5, -4, 5, 6, '#6e4a2c', 1.8);   // the strap of the bomb bag
 
   // head
   if (hero.weapon === 'bow') {
@@ -181,6 +182,15 @@ function drawHero(ctx, hero, st) {
     ctx.beginPath(); ctx.moveTo(-sx * 6, -13.5); ctx.quadraticCurveTo(-sx * 15, -12 + Math.sin(st.t * 8) * 2, -sx * 19, -9 + Math.sin(st.t * 9) * 2);
     ctx.lineTo(-sx * 15, -11); ctx.closePath();
     fs(ctx, P.main, 1.4);
+  } else if (hero.weapon === 'bomb') {
+    circ(ctx, 0, -10, 8.6); fs(ctx, P.skin);
+    // a short beard, and a hard hat with the goggles pushed up on it
+    ctx.beginPath(); ctx.moveTo(-5.5 + sx, -6); ctx.quadraticCurveTo(sx, 0, 5.5 + sx, -6); ctx.quadraticCurveTo(sx, -3.4, -5.5 + sx, -6);
+    fs(ctx, P.hair, 1.2);
+    ctx.beginPath(); ctx.arc(0, -12, 9.3, Math.PI, 0); ctx.closePath(); fs(ctx, P.accent, 1.8);
+    rrect(ctx, -12, -13.2, 24, 3.2, 1.6); fs(ctx, darken(P.accent, 0.2), 1.4);
+    for (const s of [-1, 1]) { circ(ctx, s * 3.4 + sx, -17, 2.6); fs(ctx, '#9ad0f7', 1.3); }
+    shine(ctx, -4, -18.5, 2.6, 1.2, 0.4);
   } else if (hero.weapon === 'staff') {
     circ(ctx, 0, -10, 8.6); fs(ctx, P.skin);
     ctx.beginPath();
@@ -264,6 +274,13 @@ function drawHeroWeapon(ctx, hero, st, sx) {
     glow(ctx, 0, -18, 12 + st.recoil * 10, P.accent);
     ell(ctx, 0, -18, 3.6, 4.6); fs(ctx, P.accent, 1.6);
     shine(ctx, -1, -19.5, 1.2, 1.8, 0.7, 0);
+  } else if (hero.weapon === 'bomb') {
+    if (st.ready || st.recoil < 0.3) {   // a bomb in the hand, fuse lit, when not just thrown
+      circ(ctx, 2, 0, 5.2); fs(ctx, '#3a3f4a', 1.6);
+      shine(ctx, 0.4, -1.8, 1.6, 1.1, 0.5);
+      line(ctx, 4.5, -4, 6.8, -7.2, '#c9a46a', 1.4);
+      glow(ctx, 7, -7.6, 6, '#ffcf3f', 0.9);
+    }
   } else if (hero.weapon === 'boomerang') {
     if (st.ready || st.recoil < 0.3) {   // in the hand when not just thrown
       ctx.rotate(-0.5 + st.recoil);
@@ -871,7 +888,134 @@ const ENEMY_ART = {
     }
   },
 
+  // ---------------- Iron Citadel ----------------
+  // Iron Soldier and Crossbowman (def.crossbow); the Shieldbearer is one with a big shield.
+  soldier(ctx, e, t) {
+    const P = e.pal;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const step = e.moving ? Math.sin(t * 11 + e.seed) * 2.2 : 0;
+    ell(ctx, -4 + step * 0.6, 10, 3.4, 2.5); fs(ctx, '#3a3f4c', 1.6);
+    ell(ctx, 4 - step * 0.6, 10, 3.4, 2.5); fs(ctx, '#3a3f4c', 1.6);
+    ctx.translate(0, -Math.abs(step) * 0.5);
+    rrect(ctx, -8, -4, 16, 14, 5); fs(ctx, P.main);
+    rrect(ctx, -4, -3, 8, 12, 2); fs(ctx, e.def.crossbow ? P.dark : '#9a2f2a', 1.4);
+    circ(ctx, 0, -10, 8.2); fs(ctx, P.main);
+    ctx.beginPath(); ctx.arc(0, -10, 8.2, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.6; ctx.stroke();
+    rrect(ctx, -6, -11, 12, 3.6, 1.8); ctx.fillStyle = OL; ctx.fill();
+    for (const s of [-1, 1]) { circ(ctx, s * 2.4 + sx, -9.3, 1.1); ctx.fillStyle = P.light; ctx.fill(); }
+    if (e.def.elite) {   // a captain's plume
+      ctx.beginPath(); ctx.moveTo(-1, -17); ctx.quadraticCurveTo(-sx * 10, -24, -sx * 12, -14); ctx.quadraticCurveTo(-sx * 6, -18, 1, -16); ctx.closePath();
+      fs(ctx, P.light, 1.4);
+    } else {
+      rrect(ctx, -1.5, -20, 3, 4, 1.2); fs(ctx, P.dark, 1.2);
+    }
+    if (e.def.shell) return;   // the Shieldbearer holds its shield instead (drawn on top)
+    ctx.save();
+    ctx.translate(sx * 7, 1);
+    ctx.rotate(e.look);
+    if (e.def.crossbow) {
+      rrect(ctx, -2, -1.8, 15, 3.6, 1.4); fs(ctx, '#6e4a2c', 1.4);
+      ctx.beginPath(); ctx.arc(7, 0, 7, -1.25, 1.25);
+      ctx.strokeStyle = OL; ctx.lineWidth = 4; ctx.stroke(); ctx.strokeStyle = '#8a8f9e'; ctx.lineWidth = 2; ctx.stroke();
+      const pull = e.state === 'aim' ? 4 : 1;
+      ctx.beginPath(); ctx.moveTo(7 + Math.cos(1.25) * 7, -Math.sin(1.25) * 7); ctx.lineTo(7 - pull, 0); ctx.lineTo(7 + Math.cos(1.25) * 7, Math.sin(1.25) * 7);
+      ctx.strokeStyle = '#f0e6d2'; ctx.lineWidth = 1; ctx.stroke();
+    } else {
+      oline(ctx, 3, 0, 17, 0, '#dfe6f0', 2.4);
+      line(ctx, 3, -4, 3, 4, '#8a6a3a', 2.6);
+    }
+    ctx.restore();
+  },
+
+  shieldbearer(ctx, e, t) {
+    ENEMY_ART.soldier(ctx, e, t);
+    ctx.save();
+    ctx.rotate(e.look);
+    rrect(ctx, 8, -13, 7, 26, 3); fs(ctx, '#7d8494', 2.2);
+    line(ctx, 11.5, -9, 11.5, 9, e.pal.light, 2);
+    circ(ctx, 11.5, 0, 2.4); fs(ctx, e.pal.light, 1.2);
+    ctx.restore();
+  },
+
+  hound(ctx, e, t) {
+    const P = e.pal;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const run = e.state === 'dash' ? 1 : e.moving ? 0.6 : 0;
+    const leg = Math.sin(t * 16 + e.seed) * 3 * run, crouch = e.state === 'windup' ? 2 : 0;
+    ctx.save();
+    ctx.scale(sx, 1);
+    for (const [x, ph] of [[-9, 1], [-4, -1], [5, 1], [10, -1]]) { rrect(ctx, x - 2, 3 + leg * ph * 0.5, 4, 8, 1.6); fs(ctx, P.dark, 1.4); }
+    ctx.translate(0, crouch);
+    ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(-18, -9); ctx.strokeStyle = OL; ctx.lineWidth = 3.5; ctx.stroke(); ctx.strokeStyle = col(P.dark); ctx.lineWidth = 1.8; ctx.stroke();
+    ell(ctx, 0, 0, 13, 7.5); fs(ctx, P.main);
+    for (const x of [-6, 0, 6]) line(ctx, x, -6, x - 1, 5, rgba(P.dark, 0.6), 1.3);
+    ell(ctx, 12, -5, 6.5, 5.5); fs(ctx, P.main);
+    rrect(ctx, 13, -2.5, 7, 3.4, 1.4); fs(ctx, P.dark, 1.3);
+    ctx.beginPath(); ctx.moveTo(8, -9); ctx.lineTo(10, -15); ctx.lineTo(12.5, -9.5); ctx.closePath(); fs(ctx, P.dark, 1.3);
+    glow(ctx, 14.5, -6, 6, P.light, 0.8);
+    circ(ctx, 14.5, -6, 1.6); ctx.fillStyle = P.light; ctx.fill();
+    ctx.restore();
+  },
+
+  // the Iron Warden: a big knight with a hammer that jumps at you
+  warden(ctx, e, t) {
+    const P = e.pal;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const sq = e.squash || 0, up = e.state === 'crouch' || e.state === 'air';
+    ctx.scale(1 + sq * 0.12, 1 - sq * 0.12);
+    for (const s of [-1, 1]) { rrect(ctx, s * 6 - 4, 7, 8, 8, 2.5); fs(ctx, '#3a3f4c', 1.6); }
+    rrect(ctx, -12, -8, 24, 18, 7); fs(ctx, P.main, 2.2);
+    rrect(ctx, -5, -6, 10, 15, 2); fs(ctx, '#9a2f2a', 1.4);
+    for (const s of [-1, 1]) { circ(ctx, s * 12, -6, 5.5); fs(ctx, P.dark, 1.8); }
+    rrect(ctx, -8, -24, 16, 17, 6); fs(ctx, P.main, 2);
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 6, -20); ctx.quadraticCurveTo(s * 15, -24, s * 13, -31); ctx.quadraticCurveTo(s * 11, -25, s * 4, -23); ctx.closePath(); fs(ctx, '#e8e0cc', 1.4); }
+    rrect(ctx, -6, -17, 12, 3.6, 1.8); ctx.fillStyle = OL; ctx.fill();
+    glowEyes(ctx, sx, -15.3, 2.6, 1.2, P.light);
+    ctx.save();
+    ctx.translate(sx * 13, -2);
+    ctx.rotate(up ? -sx * 2.2 : sx * 0.5);
+    oline(ctx, 0, 4, 0, -16, '#6e4a2c', 2.6);
+    rrect(ctx, -7, -24, 14, 9, 2); fs(ctx, '#5a6070', 2);
+    ctx.restore();
+  },
+
+  // a power core: a glowing orb in a cage on a stone foot, in the colour of its cables
+  core(ctx, e, t) {
+    const P = e.pal;
+    const pulse = Math.sin(t * 4 + e.seed) * 0.5 + 0.5;
+    ell(ctx, 0, 9, 12, 4.5); fs(ctx, '#4a4752', 1.8);
+    rrect(ctx, -9, -1, 18, 10, 3); fs(ctx, '#5a6070', 1.8);
+    glow(ctx, 0, -11, 30, P.main, 0.45 + pulse * 0.3);
+    circ(ctx, 0, -11, 8.5); fs(ctx, P.main, 2);
+    circ(ctx, -2.6, -13.6, 3); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+    for (const x of [-5, 0, 5]) line(ctx, x, -20, x * 1.25, -2, 'rgba(34,24,58,0.75)', 1.6);
+    rrect(ctx, -7, -23, 14, 4, 2); fs(ctx, '#5a6070', 1.6);
+  },
+
   // ---------------- bosses ----------------
+  // The Iron Heart: a beating iron heart, held up by pipes until it breaks free
+  ironHeart(ctx, e, t) {
+    const P = e.pal;
+    const beat = 1 + Math.max(0, Math.sin(t * (e.phase2 ? 7 : 5))) * 0.06;
+    if (!e.free) {
+      for (const s of [-1, 1]) { oline(ctx, s * 14, -6, s * 36, -28, '#5a6070', 5); oline(ctx, s * 18, 10, s * 36, 20, '#5a6070', 4); }
+    } else {
+      for (const s of [-1, 1]) flame(ctx, s * 9, 30, 5 + Math.sin(t * 30 + s) * 1.2);
+    }
+    ctx.save();
+    ctx.scale(beat, beat);
+    heartPath(ctx, 0, 0, 25); fs(ctx, P.main, 2.6);
+    ctx.save();
+    heartPath(ctx, 0, 0, 25); ctx.clip();
+    for (const y of [-8, 6]) { ctx.fillStyle = col(P.dark); ctx.fillRect(-32, y, 64, 4); }
+    ctx.restore();
+    for (const [x, y] of [[-17, -10], [17, -10], [-12, 8], [12, 8], [0, 18]]) { circ(ctx, x, y, 1.8); ctx.fillStyle = '#f2d38a'; ctx.fill(); }
+    glow(ctx, 0, -2, 28, P.light, 0.55 + Math.sin(t * 6) * 0.15);
+    circ(ctx, 0, -2, 8); fs(ctx, P.light, 2);
+    circ(ctx, -2, -4, 3); ctx.fillStyle = '#fff2c8'; ctx.fill();
+    ctx.restore();
+    for (const s of [-1, 1]) { rrect(ctx, s * 9 - 3.5, -30, 7, 10, 2); fs(ctx, '#5a6070', 1.6); }
+  },
   treant(ctx, e, t) {
     const P = e.pal;
     const sway = Math.sin(t * 1.6) * 2;
@@ -1069,6 +1213,7 @@ const ART_BASE = {
   salamander: 12, golem: 16, skeleton: 11, ghost: 12, wisp: 11, mage: 12, yeti: 15,
   harpy: 12, sentinel: 14, windspirit: 12, gargoyle: 13, shaman: 13, tortoise: 16,
   treant: 24, magmaKing: 28, lich: 20, roc: 28, crystal: 13,
+  soldier: 12, shieldbearer: 13, hound: 13, warden: 14, core: 13, ironHeart: 28,
 };
 
 function drawEnemy(ctx, e, t) {
@@ -1166,6 +1311,15 @@ const ELEMENT_COLORS = { fire: '#ff8a2a', poison: '#7be05a', frost: '#7fdcff', l
 function drawPlayerShot(ctx, b, t) {
   const glowC = b.glow || '#ffffff';
   const s = b.size || 1;
+  if (b.kind === 'bomb') {   // in the air: drawn above its shadow, the fuse sparking
+    const y = b.y - (b.z || 0);
+    drawShadow(ctx, b.x, b.y + 4, 4.5 * s, 0.25);
+    if (b.glow) glow(ctx, b.x, y, 16 * s, glowC, 0.8);
+    circ(ctx, b.x, y, 5 * s); fs(ctx, '#3a3f4a', 1.6);
+    shine(ctx, b.x - 1.6 * s, y - 1.8 * s, 1.6 * s, 1.1 * s, 0.5);
+    glow(ctx, b.x + 3 * s, y - 5 * s, 7 + Math.sin(t * 40 + b.x) * 2, '#ffcf3f', 0.9);
+    return;
+  }
   ctx.save();
   ctx.translate(b.x, b.y);
   const a = Math.atan2(b.vy, b.vx);
@@ -1581,6 +1735,14 @@ const ICONS = {
     for (const [y, l] of [[-8, 12], [0, 16], [8, 10]]) line(c, -20, y, -20 + l, y, 'rgba(255,255,255,0.75)', 2.4);
     star(c, 6, 0, 13, '#c38eff');
     shine(c, 3, -4, 3, 2, 0.7);
+  },
+  overdrive(c) {
+    glow(c, -2, 4, 30, '#ffcf3f', 0.55);
+    for (const [x, y] of [[-21, -10], [-23, 3], [-20, 15]]) line(c, x, y, x + 8, y, 'rgba(255,207,63,0.9)', 3);
+    circ(c, -1, 5, 12); fs(c, '#3a3f4a', 2.4);
+    shine(c, -5, 0, 4, 2.6, 0.45);
+    oline(c, 7, -4, 12, -12, '#c9a46a', 2);
+    star(c, 14, -15, 7, '#ffcf3f');
   },
   turret(c) {
     rrect(c, -14, 4, 28, 12, 4); fs(c, '#c45a1c', 2);

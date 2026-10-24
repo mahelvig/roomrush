@@ -78,6 +78,15 @@ const ABILITY_USE = {
     Sound.play('dash');
   },
 
+  // Brick: bombs twice as fast, with no slowdown on the run, for a few seconds (player.js)
+  overdrive(p, L) {
+    p.overdriveT = 3 + 0.35 * L;
+    FX.ring(p.x, p.y, 46, '#ffcf3f', 0.5, 6);
+    FX.burst(p.x, p.y, ['#ffcf3f', '#ff8a3a', '#ffffff'], 16, { min: 50, max: 160 });
+    FX.text(p.x, p.y - 38, 'OVERDRIVE!', '#ffcf3f', 13, { life: 1.1, pop: 0.5 });
+    Sound.play('perk');
+  },
+
   // Pip: a turret that shoots the nearest enemy
   turret(p, L) {
     const life = 8 + L;

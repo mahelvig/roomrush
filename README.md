@@ -4,8 +4,11 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
 
 **Play:** https://mahelvig.github.io/roomrush/
 
-- Three worlds (Whispering Woods, Ember Caverns, Frozen Crypt), each with 20 rooms.
-  Every 5th room is an elite room, room 20 is a boss.
+- Five worlds (Whispering Woods, Ember Caverns, Frozen Crypt, Skyward Ruins, Iron Citadel),
+  each with 20 rooms and harder difficulty tiers once cleared. Every 5th room is an elite room,
+  room 20 is a boss. The Iron Citadel is different: you climb tall fortress rooms past towers
+  that run on power cores, and the boss is an escort.
+- The Depths: endless worlds, each harder than the last.
 - Your weapon fires on its own at the nearest enemy. You shoot faster while standing still.
 - After every room you pick one of two perks: extra shots, fire, poison, frost, lightning,
   curses, companions, shields and more. Rarer perks are stronger.
@@ -25,6 +28,7 @@ music are made with Web Audio (`js/audio.js`).
 | `js/perks.js` | All perks and how they change your stats |
 | `js/game.js` | Rooms, shots, pickups, camera, drawing the game |
 | `js/enemies.js`, `js/bosses.js` | Enemy behaviour and boss attacks |
+| `js/fortress.js` | The Iron Citadel: fortress rooms, towers, cores, the escort boss |
 | `js/room.js` | Room layouts, collision and path finding |
 | `js/ui.js` | Menus, perk cards, HUD |
 

@@ -741,8 +741,8 @@ function drawHeroPreview(ctx, w, h, t, hero) {
 
 // The Depths card: the three worlds' floors sinking into the dark round a swirling portal.
 function drawDepthsPreview(ctx, w, h, t) {
-  const band = w / WORLDS.length;
-  WORLDS.forEach((world, i) => {
+  const band = w / DEPTH_WORLDS.length;
+  DEPTH_WORLDS.forEach((world, i) => {
     ctx.fillStyle = world.theme.floorA;
     ctx.fillRect(i * band, 0, band + 1, h);
   });

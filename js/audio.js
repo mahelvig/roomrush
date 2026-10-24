@@ -65,7 +65,7 @@ const Sound = {
 
   play(name) {
     if (!this.ctx || !save.settings.sfx) return;
-    const gap = { shoot: 0.06, hit: 0.035, die: 0.04, coin: 0.05, eshoot: 0.07, zap: 0.08, burn: 0.15 }[name] || 0.02;
+    const gap = { shoot: 0.06, hit: 0.035, die: 0.04, coin: 0.05, eshoot: 0.07, zap: 0.08, burn: 0.15, boom: 0.06, toss: 0.05, cannon: 0.1 }[name] || 0.02;
     const now = this.ctx.currentTime;
     if (this.last[name] && now - this.last[name] < gap) return;
     this.last[name] = now;
@@ -133,6 +133,7 @@ const TRACKS = {
   caverns: { bpm: 116, root: 50, mode: 'minor', chords: [0, 5, 3, 6], wave: 'square', arp: [0, 4, 2, 4, 0, 4, 7, 4], hat: true, kick: true, drive: true, bassWave: 'sawtooth' },
   crypt:   { bpm: 90,  root: 55, mode: 'minor', chords: [0, 3, 5, 4], wave: 'sine', arp: [0, 2, 4, 9, 7, 4, 2, null], hat: true, lead: [4, null, 3, 2, null, 0, 1, null] },
   sky:     { bpm: 100, root: 62, mode: 'major', chords: [0, 3, 5, 4], wave: 'triangle', arp: [0, 4, 7, 9, 7, 4, 2, 4], hat: true, lead: [9, null, 7, 4, null, 5, 4, null] },
+  citadel: { bpm: 120, root: 52, mode: 'minor', chords: [0, 5, 6, 4], wave: 'square', arp: [0, 0, 7, 0, 4, 0, 7, 4], hat: true, kick: true, drive: true, bassWave: 'sawtooth', lead: [7, null, 6, 4, null, 2, 4, null] },
   boss:    { bpm: 142, root: 48, mode: 'minor', chords: [0, 0, 5, 6], wave: 'square', arp: [0, 7, 4, 7, 2, 7, 4, 7], hat: true, kick: true, drive: true, bassWave: 'sawtooth' },
 };
 
@@ -166,4 +167,7 @@ const SFX = {
   victory: s => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => s.tone('triangle', f, f, 0.3, 0.09, i * 0.11)),
   lose: s => [392, 349, 311, 262].forEach((f, i) => s.tone('triangle', f, f * 0.98, 0.35, 0.08, i * 0.16)),
   blink: s => s.tone('sine', 300, 1200, 0.15, 0.04),
+  toss: s => s.hiss(0.09, 0.05, 'bandpass', 900, 400, 0, 1.5),
+  boom: s => { s.hiss(0.22, 0.12, 'lowpass', 1400, 90); s.tone('sine', 150, 50, 0.18, 0.12); },
+  cannon: s => { s.tone('sine', 95, 38, 0.3, 0.25); s.hiss(0.25, 0.12, 'lowpass', 700, 120); },
 };

@@ -23,6 +23,8 @@ function defaultSave() {
     depthCleared: 0,       // deepest depth cleared (for the gem bonus every fifth depth)
     depthPick: 0,          // depth picked on the world screen (0 = the deepest start)
     seenAbilityHint: false,
+    seenFortHint: false,   // the Iron Citadel's first room and its escort boss explain themselves once
+    seenEscortHint: false,
     settings: { sfx: true, music: true, vibrate: true },
     stats: { runs: 0, kills: 0, bosses: 0, deaths: 0, elites: 0, rooms: 0, roomsNoHit: 0, bossNoHit: 0, goldTotal: 0, abilityUses: 0, heroWins: [] },
     quests: { day: '', daily: [], swapped: false, dailyChest: false, week: '', weekly: [], weeklyChest: false },

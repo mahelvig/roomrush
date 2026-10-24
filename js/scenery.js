@@ -44,6 +44,13 @@ function renderRoomBG(world, s) {
       else if (t === TILE.VOID) voidTile(g, c, r, th, R);
     }
   }
+  if (room.fort && room.fort.exitY !== null) {
+    // a red carpet from the gate down to the line you have to cross
+    const y1 = room.fort.exitY;
+    g.fillStyle = th.carpet; g.fillRect(DOOR_X - 24, ROOM_Y, 48, y1 - ROOM_Y + 6);
+    g.fillStyle = '#ffcf3f'; g.fillRect(DOOR_X - 24, ROOM_Y, 3, y1 - ROOM_Y + 6); g.fillRect(DOOR_X + 21, ROOM_Y, 3, y1 - ROOM_Y + 6);
+    g.fillStyle = 'rgba(255,207,63,0.55)'; g.fillRect(ROOM_X, y1 - 1.5, ROOM_W, 3);
+  }
   // soft shadow under the top wall
   const grd = g.createLinearGradient(0, ROOM_Y, 0, ROOM_Y + 24);
   grd.addColorStop(0, 'rgba(10,5,25,0.35)');
@@ -57,11 +64,38 @@ function renderRoomBG(world, s) {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (room.grid[tileIndex(c, r)] !== TILE.WALL) continue;
+      const special = room.fort && room.fort.special.get(tileIndex(c, r));
+      if (special === 'tower' || special === 'gate') continue;   // drawn every frame (fortress.js)
+      if (room.fort && special !== 'cover') { wallBlock(g, c, r, th); continue; }
       const kind = world.obstacles[Math.floor(R() * world.obstacles.length)];
       drawObstacle(g, world, kind, tileCenterX(c), tileCenterY(r), R);
     }
   }
   return cv;
+}
+
+// A block of fortress wall: a raised stone top and, where nothing stands in front of it, a brick face.
+function wallBlock(g, c, r, th) {
+  const x = ROOM_X + c * T, y = ROOM_Y + r * T, H = 9;
+  const solid = (cc, rr) => isTile(cc, rr, TILE.WALL) && !room.fort.special.has(tileIndex(cc, rr));
+  const below = solid(c, r + 1);
+  if (!below) {
+    g.fillStyle = th.wall; g.fillRect(x, y + T - H, T, H);
+    g.strokeStyle = 'rgba(20,14,30,0.4)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y + T - H / 2); g.lineTo(x + T, y + T - H / 2);
+    for (const dx of [8, 22]) { g.moveTo(x + dx, y + T - H); g.lineTo(x + dx, y + T - H / 2); }
+    g.moveTo(x + 15, y + T - H / 2); g.lineTo(x + 15, y + T); g.stroke();
+  }
+  g.fillStyle = th.wallTop; g.fillRect(x, y - H, T, T);
+  g.strokeStyle = 'rgba(20,14,30,0.25)'; g.lineWidth = 1;
+  g.strokeRect(x + 3, y - H + 3, T - 6, T - 6);
+  g.strokeStyle = OL; g.lineWidth = 2;
+  g.beginPath();
+  if (!solid(c, r - 1)) { g.moveTo(x, y - H); g.lineTo(x + T, y - H); }
+  if (!solid(c - 1, r)) { g.moveTo(x, y - H); g.lineTo(x, below ? y + T - H : y + T); }
+  if (!solid(c + 1, r)) { g.moveTo(x + T, y - H); g.lineTo(x + T, below ? y + T - H : y + T); }
+  if (!below) { g.moveTo(x, y + T - H); g.lineTo(x + T, y + T - H); g.moveTo(x, y + T); g.lineTo(x + T, y + T); }
+  g.stroke();
 }
 
 function floorDetail(g, world, x, y, R) {
@@ -94,6 +128,22 @@ function floorDetail(g, world, x, y, R) {
     if (R() < 0.25) {
       g.beginPath(); g.ellipse(x + R() * T, y + R() * T, 2 + R() * 2, 1.5 + R(), 0, 0, TAU);
       g.fillStyle = th.detail; g.fill();
+    }
+  } else if (world.id === 'citadel') {
+    // big flagstones, now and then an iron grate or a crack
+    g.strokeStyle = rgba(th.detail, 0.9);
+    g.lineWidth = 1.2;
+    g.strokeRect(x + 0.6, y + 0.6, T - 1.2, T - 1.2);
+    if (R() < 0.45) { g.beginPath(); g.moveTo(x + T / 2, y + 1); g.lineTo(x + T / 2, y + T - 1); g.stroke(); }
+    const k = R();
+    if (k < 0.012) {
+      rrect(g, x + 8, y + 8, 14, 14, 2); g.fillStyle = rgba(th.detail, 0.9); g.fill();
+      g.strokeStyle = rgba(th.floorA, 0.9); g.lineWidth = 1.2;
+      g.beginPath(); for (const d of [12, 15, 18]) { g.moveTo(x + d, y + 9); g.lineTo(x + d, y + 21); } g.stroke();
+    } else if (k < 0.08) {
+      g.beginPath(); const px = x + 5 + R() * 18, py = y + 5 + R() * 18;
+      g.moveTo(px, py); g.lineTo(px + 5, py + 4); g.lineTo(px + 6, py + 10);
+      g.strokeStyle = th.detail; g.stroke();
     }
   } else if (world.id === 'sky') {
     // worn marble slabs with moss in the cracks
@@ -312,11 +362,19 @@ function drawFrame(g, world, R) {
     g.fillRect(ROOM_X - 5, ROOM_Y, 5, ROOM_H);
     g.fillRect(ROOM_X + ROOM_W, ROOM_Y, 5, ROOM_H);
     g.fillRect(0, ROOM_Y + ROOM_H, WORLD_W, 5);
+    const fire = world.id === 'citadel' ? ['rgba(255,170,80,0.3)', '#ffb36a'] : ['rgba(120,220,255,0.25)', '#9ff0ff'];
     for (const x of [40, WORLD_W - 40]) {
       // torches
       g.fillStyle = '#5a4a3a'; g.fillRect(x - 2, ROOM_Y - 34, 4, 12);
-      g.beginPath(); g.arc(x, ROOM_Y - 38, 9, 0, TAU); g.fillStyle = 'rgba(120,220,255,0.25)'; g.fill();
-      g.beginPath(); g.arc(x, ROOM_Y - 38, 4, 0, TAU); g.fillStyle = '#9ff0ff'; g.fill();
+      g.beginPath(); g.arc(x, ROOM_Y - 38, 9, 0, TAU); g.fillStyle = fire[0]; g.fill();
+      g.beginPath(); g.arc(x, ROOM_Y - 38, 4, 0, TAU); g.fillStyle = fire[1]; g.fill();
+    }
+    if (world.id === 'citadel') {
+      for (const x of [100, WORLD_W - 100]) {
+        g.beginPath(); g.moveTo(x - 11, ROOM_Y - 52); g.lineTo(x + 11, ROOM_Y - 52); g.lineTo(x + 11, ROOM_Y - 14); g.lineTo(x, ROOM_Y - 21); g.lineTo(x - 11, ROOM_Y - 14); g.closePath();
+        g.fillStyle = th.carpet; g.fill(); g.strokeStyle = OL; g.lineWidth = 1.8; g.stroke();
+        circ(g, x, ROOM_Y - 36, 5); fs(g, '#ffcf3f', 1.4);
+      }
     }
   }
   // inner edge line
@@ -427,6 +485,27 @@ function drawObstacle(g, world, kind, x, y, R) {
       shine(g, x - 6, y - 2, 3, 2, 0.3);
       break;
     }
+    case 'crate': {
+      rrect(g, x - 12, y - 14, 24, 23, 2); fs(g, '#a0703f', 2);
+      g.strokeStyle = '#7a4e2e'; g.lineWidth = 1.8;
+      g.beginPath(); g.moveTo(x - 9, y - 11); g.lineTo(x + 9, y + 6); g.moveTo(x + 9, y - 11); g.lineTo(x - 9, y + 6); g.stroke();
+      rrect(g, x - 12, y - 14, 24, 23, 2); g.strokeStyle = OL; g.lineWidth = 2; g.stroke();
+      shine(g, x - 7, y - 10, 3, 1.5, 0.3);
+      break;
+    }
+    case 'barrel': {
+      rrect(g, x - 10, y - 14, 20, 23, 7); fs(g, '#8a5a36', 2);
+      for (const yy of [y - 8, y + 3]) { g.beginPath(); g.moveTo(x - 10, yy); g.lineTo(x + 10, yy); g.strokeStyle = '#4a4f5c'; g.lineWidth = 2.6; g.stroke(); }
+      g.beginPath(); g.ellipse(x, y - 13, 8.5, 3.2, 0, 0, TAU); fs(g, '#a0703f', 1.6);
+      break;
+    }
+    case 'sandbags': {
+      for (const [dx, dy] of [[-7, 3], [7, 3], [0, -6]]) {
+        g.beginPath(); g.ellipse(x + dx, y + dy, 9, 5.5, 0, 0, TAU); fs(g, '#b8a27a', 1.8);
+        g.beginPath(); g.moveTo(x + dx - 5, y + dy); g.lineTo(x + dx + 5, y + dy); g.strokeStyle = '#8f7a56'; g.lineWidth = 1.2; g.stroke();
+      }
+      break;
+    }
     case 'pillar': {
       g.beginPath(); g.ellipse(x, y + 6, 12, 5, 0, 0, TAU); fs(g, '#5d6880', 1.8);
       rrect(g, x - 8, y - 16, 16, 22, 2); fs(g, '#a4afc4', 2);
@@ -441,7 +520,7 @@ function drawObstacle(g, world, kind, x, y, R) {
 function drawDoor(ctx, world, openT, t) {
   const x = DOOR_X, y = ROOM_Y, w = DOOR_W, h = 48;
   const th = world.theme;
-  const glowC = { woods: '#fff3b0', caverns: '#ffc27a', crypt: '#b6f0ff', sky: '#ffffff' }[world.id] || '#ffffff';
+  const glowC = { woods: '#fff3b0', caverns: '#ffc27a', crypt: '#b6f0ff', sky: '#ffffff', citadel: '#ffcf8a' }[world.id] || '#ffffff';
   ctx.save();
   // opening
   ctx.beginPath();
@@ -489,6 +568,13 @@ function drawDoor(ctx, world, openT, t) {
 }
 
 function doorPanel(ctx, world, x, y, w, h) {
+  if (world.id === 'citadel') {   // an iron portcullis
+    ctx.fillStyle = 'rgba(20,14,30,0.65)';
+    ctx.fillRect(x - w / 2, y - h, w, h);
+    for (let i = -2; i <= 2; i++) oline(ctx, x + i * 10, y - h, x + i * 10, y, '#7d7b8a', 2.4);
+    for (const yy of [y - 34, y - 14]) oline(ctx, x - w / 2, yy, x + w / 2, yy, '#7d7b8a', 2.4);
+    return;
+  }
   if (world.id === 'sky') {
     ctx.fillStyle = '#ece6d8';
     ctx.fillRect(x - w / 2, y - h, w, h);
