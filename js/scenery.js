@@ -41,6 +41,7 @@ function renderRoomBG(world, s) {
       else if (t === TILE.LAVA) liquidTile(g, c, r, TILE.LAVA, '#7a2410', th.lava, 'rgba(255,220,120,0.6)', R);
       else if (t === TILE.ICE) iceTile(g, c, r, th, R);
       else if (t === TILE.SPIKES) spikeBase(g, c, r);
+      else if (t === TILE.VOID) voidTile(g, c, r, th, R);
     }
   }
   // soft shadow under the top wall
@@ -93,6 +94,20 @@ function floorDetail(g, world, x, y, R) {
     if (R() < 0.25) {
       g.beginPath(); g.ellipse(x + R() * T, y + R() * T, 2 + R() * 2, 1.5 + R(), 0, 0, TAU);
       g.fillStyle = th.detail; g.fill();
+    }
+  } else if (world.id === 'sky') {
+    // worn marble slabs with moss in the cracks
+    g.strokeStyle = rgba(th.detail, 0.9);
+    g.lineWidth = 1.2;
+    g.strokeRect(x + 0.6, y + 0.6, T - 1.2, T - 1.2);
+    if (R() < 0.18) {
+      g.beginPath(); g.ellipse(x + R() * T, y + T - 2 - R() * 6, 4 + R() * 4, 2 + R() * 1.5, 0, 0, TAU);
+      g.fillStyle = rgba(th.moss, 0.75); g.fill();
+    }
+    if (R() < 0.1) {
+      g.beginPath(); const px = x + 6 + R() * 18, py = y + 6 + R() * 18;
+      g.moveTo(px, py); g.lineTo(px + 4, py + 5); g.lineTo(px + 3, py + 10);
+      g.strokeStyle = th.detail; g.stroke();
     }
   } else {
     g.strokeStyle = rgba(th.detail, 0.8);
@@ -152,6 +167,37 @@ function iceTile(g, c, r, th, R) {
   g.beginPath();
   g.moveTo(x + 5, y + 12); g.lineTo(x + 12, y + 5);
   g.moveTo(x + 9, y + 22); g.lineTo(x + 22, y + 9);
+  g.stroke();
+}
+
+// A gap in the floating island: sky and clouds far below, a rock face under the edge above it.
+function voidTile(g, c, r, th, R) {
+  const x = ROOM_X + c * T, y = ROOM_Y + r * T;
+  const grd = g.createLinearGradient(0, y, 0, y + T);
+  grd.addColorStop(0, th.skyDeep);
+  grd.addColorStop(1, th.sky);
+  g.fillStyle = grd;
+  g.fillRect(x, y, T, T);
+  if (R() < 0.5) {
+    const cx = x + 6 + R() * 18, cy = y + 12 + R() * 12;
+    for (const [dx, dy, rr] of [[-4, 1, 4], [0, -1, 5], [5, 1, 4]]) { g.beginPath(); g.arc(cx + dx, cy + dy, rr, 0, TAU); g.fillStyle = 'rgba(255,255,255,0.75)'; g.fill(); }
+  }
+  const solid = (cc, rr) => !isTile(cc, rr, TILE.VOID) && cc >= 0 && rr >= 0 && cc < COLS && rr < ROWS;
+  if (solid(c, r - 1)) {   // the rock face under the edge
+    g.fillStyle = th.rock;
+    g.fillRect(x, y, T, 9);
+    g.beginPath(); g.moveTo(x, y + 9);
+    for (let i = 1; i <= 5; i++) g.lineTo(x + (i * T) / 5 - T / 10, y + 9 + (i % 2 ? 4 : 0));
+    g.lineTo(x + T, y + 9); g.lineTo(x + T, y); g.closePath();
+    g.fillStyle = darken(th.rock, 0.15); g.fill();
+  }
+  g.strokeStyle = OL;
+  g.lineWidth = 2;
+  g.beginPath();
+  if (solid(c, r - 1)) { g.moveTo(x, y); g.lineTo(x + T, y); }
+  if (solid(c, r + 1)) { g.moveTo(x, y + T); g.lineTo(x + T, y + T); }
+  if (solid(c - 1, r)) { g.moveTo(x, y); g.lineTo(x, y + T); }
+  if (solid(c + 1, r)) { g.moveTo(x + T, y); g.lineTo(x + T, y + T); }
   g.stroke();
 }
 
@@ -218,6 +264,34 @@ function drawFrame(g, world, R) {
       const x = R() * WORLD_W, y = R() * (ROOM_Y - 20);
       g.beginPath(); g.arc(x, y, 1.5 + R() * 1.5, 0, TAU);
       g.fillStyle = rgba(th.crack, 0.5); g.fill();
+    }
+  } else if (world.id === 'sky') {
+    // open sky round the island, a rocky rim and its underside hanging in the air
+    const sky = g.createLinearGradient(0, 0, 0, WORLD_H);
+    sky.addColorStop(0, th.skyDeep);
+    sky.addColorStop(1, th.sky);
+    g.fillStyle = sky;
+    g.fillRect(0, 0, WORLD_W, ROOM_Y);
+    g.fillRect(0, 0, ROOM_X, WORLD_H);
+    g.fillRect(ROOM_X + ROOM_W, 0, WORLD_W - ROOM_X - ROOM_W, WORLD_H);
+    g.fillRect(0, ROOM_Y + ROOM_H, WORLD_W, WORLD_H - ROOM_Y - ROOM_H);
+    for (let i = 0; i < 9; i++) {
+      const cx = R() * WORLD_W, cy = R() * ROOM_Y * 0.8;
+      for (const [dx, dy, rr] of [[-10, 2, 9], [0, -3, 12], [12, 2, 9]]) { g.beginPath(); g.arc(cx + dx, cy + dy, rr, 0, TAU); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fill(); }
+    }
+    g.fillStyle = th.rock;
+    g.beginPath(); g.moveTo(ROOM_X, ROOM_Y + ROOM_H);
+    for (let x = ROOM_X; x <= ROOM_X + ROOM_W; x += 22) g.lineTo(x + 11, ROOM_Y + ROOM_H + 12 + R() * 14);
+    g.lineTo(ROOM_X + ROOM_W, ROOM_Y + ROOM_H); g.closePath();
+    g.fill(); g.strokeStyle = OL; g.lineWidth = 1.8; g.stroke();
+    g.fillStyle = th.wallTop;
+    g.fillRect(0, ROOM_Y - 7, WORLD_W, 7);
+    g.fillRect(ROOM_X - 6, ROOM_Y, 6, ROOM_H);
+    g.fillRect(ROOM_X + ROOM_W, ROOM_Y, 6, ROOM_H);
+    g.fillRect(ROOM_X - 6, ROOM_Y + ROOM_H, ROOM_W + 12, 6);
+    for (const x of [44, WORLD_W - 44]) {   // two broken pillars on the upper ledge
+      rrect(g, x - 7, ROOM_Y - 40, 14, 34, 2); fs(g, '#e9e2d2', 1.8);
+      for (const dx of [-3, 2]) { g.beginPath(); g.moveTo(x + dx, ROOM_Y - 38); g.lineTo(x + dx, ROOM_Y - 8); g.strokeStyle = '#c4b8a0'; g.lineWidth = 1.3; g.stroke(); }
     }
   } else {
     // stone bricks
@@ -329,6 +403,30 @@ function drawObstacle(g, world, kind, x, y, R) {
       g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 2; g.stroke();
       break;
     }
+    case 'column': {   // a broken marble column
+      g.beginPath(); g.ellipse(x, y + 6, 12, 5, 0, 0, TAU); fs(g, '#bdb29c', 1.8);
+      const h = 14 + R() * 8;
+      rrect(g, x - 8, y - h, 16, h + 6, 2); fs(g, '#ece6d8', 2);
+      for (const dx of [-3, 2]) { g.beginPath(); g.moveTo(x + dx, y - h + 2); g.lineTo(x + dx, y + 4); g.strokeStyle = '#cfc5b2'; g.lineWidth = 1.4; g.stroke(); }
+      g.beginPath(); g.moveTo(x - 8, y - h); g.lineTo(x - 3, y - h - 4); g.lineTo(x + 1, y - h - 1); g.lineTo(x + 5, y - h - 5); g.lineTo(x + 8, y - h);
+      g.closePath(); fs(g, '#f6f1e6', 1.6);
+      if (R() < 0.5) { g.beginPath(); g.ellipse(x - 4, y + 3, 4, 2, 0, 0, TAU); g.fillStyle = '#8cc56a'; g.fill(); }
+      break;
+    }
+    case 'urn': {
+      g.beginPath(); g.moveTo(x - 6, y + 8); g.quadraticCurveTo(x - 14, y - 2, x - 6, y - 12); g.lineTo(x + 6, y - 12); g.quadraticCurveTo(x + 14, y - 2, x + 6, y + 8); g.closePath();
+      fs(g, '#d9a066', 2);
+      rrect(g, x - 8, y - 15, 16, 4, 2); fs(g, '#c48b52', 1.6);
+      g.beginPath(); g.moveTo(x - 9, y - 2); g.lineTo(x + 9, y - 2); g.strokeStyle = '#7a4e2e'; g.lineWidth = 1.6; g.stroke();
+      shine(g, x - 4, y - 6, 2, 4, 0.35);
+      break;
+    }
+    case 'boulder': {
+      g.beginPath(); g.ellipse(x, y, 14, 11, 0, 0, TAU); fs(g, '#a69c8a', 2);
+      g.beginPath(); g.ellipse(x - 2, y - 8, 9, 4, 0, 0, TAU); g.fillStyle = '#8cc56a'; g.fill();
+      shine(g, x - 6, y - 2, 3, 2, 0.3);
+      break;
+    }
     case 'pillar': {
       g.beginPath(); g.ellipse(x, y + 6, 12, 5, 0, 0, TAU); fs(g, '#5d6880', 1.8);
       rrect(g, x - 8, y - 16, 16, 22, 2); fs(g, '#a4afc4', 2);
@@ -343,7 +441,7 @@ function drawObstacle(g, world, kind, x, y, R) {
 function drawDoor(ctx, world, openT, t) {
   const x = DOOR_X, y = ROOM_Y, w = DOOR_W, h = 48;
   const th = world.theme;
-  const glowC = { woods: '#fff3b0', caverns: '#ffc27a', crypt: '#b6f0ff' }[world.id];
+  const glowC = { woods: '#fff3b0', caverns: '#ffc27a', crypt: '#b6f0ff', sky: '#ffffff' }[world.id] || '#ffffff';
   ctx.save();
   // opening
   ctx.beginPath();
@@ -391,6 +489,15 @@ function drawDoor(ctx, world, openT, t) {
 }
 
 function doorPanel(ctx, world, x, y, w, h) {
+  if (world.id === 'sky') {
+    ctx.fillStyle = '#ece6d8';
+    ctx.fillRect(x - w / 2, y - h, w, h);
+    for (const yy of [y - 36, y - 14]) { ctx.fillStyle = '#ffcf3f'; ctx.fillRect(x - w / 2, yy, w, 3); }
+    ctx.strokeStyle = 'rgba(120,100,70,0.35)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x, y); ctx.stroke();
+    circ(ctx, x, y - 25, 4); fs(ctx, '#3fb8d6', 1.4);
+    return;
+  }
   if (world.id === 'crypt') {
     ctx.fillStyle = 'rgba(20,20,40,0.6)';
     ctx.fillRect(x - w / 2, y - h, w, h);
@@ -435,6 +542,20 @@ function drawTileFx(ctx, world, t) {
       if (k < 0.5) {
         ctx.fillStyle = `rgba(255,255,255,${0.5 - k})`;
         ctx.fillRect(x + 6 + ((c * 7) % 14), y + 12 + ((r * 5) % 10), 6, 1.5);
+      }
+    } else if (windOf(type)) {
+      // streaks blowing across the band
+      const dir = windOf(type);
+      for (let i = 0; i < 2; i++) {
+        const k = (t * 1.6 + c * 0.23 + r * 0.41 + i * 0.5) % 1;
+        const sx = dir > 0 ? x + k * T : x + T - k * T, sy = y + 8 + i * 13 + ((c + r) % 3) * 2;
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * Math.sin(k * Math.PI)})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - dir * 10, sy); ctx.stroke();
+      }
+      if ((c + r) % 4 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath(); ctx.moveTo(x + 15 + dir * 5, y + 15); ctx.lineTo(x + 15 - dir * 3, y + 10); ctx.lineTo(x + 15 - dir * 3, y + 20); ctx.closePath(); ctx.fill();
       }
     } else if (type === TILE.SPIKES) {
       if (sp === 'down') continue;

@@ -21,8 +21,9 @@ function tileAt(x, y) {
   return room.grid[tileIndex(c, r)];
 }
 const blocksWalk = t => t === TILE.WALL || t === TILE.WATER;
-// Ground enemies also avoid lava when they plan a path.
-const blocksPath = t => t === TILE.WALL || t === TILE.WATER || t === TILE.LAVA;
+// Ground enemies also avoid lava and gaps (where they would fall) when they plan a path.
+const blocksPath = t => t === TILE.WALL || t === TILE.WATER || t === TILE.LAVA || t === TILE.VOID;
+const windOf = t => (t === TILE.WIND_L ? -1 : t === TILE.WIND_R ? 1 : 0);
 
 // ---------- layout generation ----------
 
@@ -106,8 +107,8 @@ function generateRoom(world, idx, type) {
         PATTERNS[p](set, rng);
       }
     }
-    // hazards: water bands/ponds, lava pools, ice patches, spike traps
-    if (type !== 'boss' || hz.lava || hz.ice) {
+    // hazards: water bands/ponds, lava pools, ice patches, spike traps, gaps in a floating island
+    if (type !== 'boss' || hz.lava || hz.ice || hz.void) {
       if (hz.water && rng() < hz.water && type === 'normal') {
         if (rng() < 0.5) {
           const r = 6 + Math.floor(rng() * 6);
@@ -126,10 +127,31 @@ function generateRoom(world, idx, type) {
         for (let c = 1; c < 6; c += 2) set(c, r, TILE.SPIKES);
         if (rng() < 0.5) for (let c = 0; c < 6; c += 2) set(c, r + 4, TILE.SPIKES);
       }
+      if (hz.void && rng() < hz.void) {
+        const holes = type === 'boss' ? 1 : 1 + Math.floor(rng() * 2);
+        for (let k = 0; k < holes; k++) {
+          const c = 1 + Math.floor(rng() * 3), r = 3 + Math.floor(rng() * 10), h = 2 + Math.floor(rng() * 2);
+          for (let dc = 0; dc < 2; dc++) for (let dr = 0; dr < h; dr++) if (g[tileIndex(c + dc, r + dr)] === TILE.FLOOR) set(c + dc, r + dr, TILE.VOID);
+        }
+        if (type !== 'boss' && rng() < 0.6) {   // the edge of the island crumbles away
+          const r = 3 + Math.floor(rng() * 9), n = 3 + Math.floor(rng() * 3);
+          for (let dr = 0; dr < n; dr++) {
+            set(0, r + dr, TILE.VOID);
+            if (dr > 0 && dr < n - 1 && rng() < 0.5) set(1, r + dr, TILE.VOID);
+          }
+        }
+      }
     }
     // mirror
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < 5; c++) g[tileIndex(COLS - 1 - c, r)] = g[tileIndex(c, r)];
+    // a band of wind across the room (after the mirror: it blows one way)
+    if (hz.wind && type === 'normal' && rng() < hz.wind) {
+      const r0 = 4 + Math.floor(rng() * 9), wind = rng() < 0.5 ? TILE.WIND_L : TILE.WIND_R;
+      for (let r = r0; r < r0 + 2; r++) {
+        for (let c = 0; c < COLS; c++) if (g[tileIndex(c, r)] === TILE.FLOOR && !keepClear(c, r)) g[tileIndex(c, r)] = wind;
+      }
+    }
     if (connected(g)) {
       room.grid = g;
       room.nav = {};
@@ -263,7 +285,7 @@ function lineClear(ax, ay, bx, by, walk) {
   for (let i = 1; i < n; i++) {
     const t = i / n;
     const tl = tileAt(ax + (bx - ax) * t, ay + (by - ay) * t);
-    if (tl === TILE.WALL || (walk && (tl === TILE.WATER || tl === TILE.LAVA))) return false;
+    if (tl === TILE.WALL || (walk && (tl === TILE.WATER || tl === TILE.LAVA || tl === TILE.VOID))) return false;
   }
   return true;
 }
@@ -314,7 +336,7 @@ const navClassOf = r => NAV_RADII.find(v => r <= v) || NAV_RADII[NAV_RADII.lengt
 function navFits(R, x, y) {
   const m = R - NAV / 2;
   if (x < ROOM_X + m || x > ROOM_X + ROOM_W - m || y < ROOM_Y + m || y > ROOM_Y + ROOM_H - m) return false;
-  if (tileAt(x, y) === TILE.LAVA) return false;
+  if (tileAt(x, y) === TILE.LAVA || tileAt(x, y) === TILE.VOID) return false;
   const c0 = colOf(x - m), c1 = colOf(x + m), r0 = rowOf(y - m), r1 = rowOf(y + m);
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {

@@ -11,9 +11,12 @@ const DEPTH_MODS = [
   { id: 'meteors', name: 'Meteor Rain', desc: 'Meteors keep falling around you' },
   { id: 'dark', name: 'Darkness', desc: 'Only the area around you is lit' },
 ];
-const DEPTH_BOSS_AFFIXES = ['fast', 'toxic', 'frost', 'summoner', 'mirror', 'blinking'];
+// (not Summoner: bosses already call in helpers, and a room full of them keeps the aim off the boss)
+const DEPTH_BOSS_AFFIXES = ['fast', 'toxic', 'frost', 'mirror', 'blinking'];
 
-const depthsUnlocked = () => (save.tiers[WORLDS[WORLDS.length - 1].id] ?? -1) >= 0;
+// The Depths open (and are as tough as) Frozen Crypt, world 3, whatever worlds come after it.
+const DEPTH_BASE = 'crypt';
+const depthsUnlocked = () => (save.tiers[DEPTH_BASE] ?? -1) >= 0;
 // Where a run may start: depth 1, or every fifth depth reached so far.
 const depthStarts = () => [1, ...Array.from({ length: Math.floor((save.depthBest || 0) / 5) }, (_, i) => (i + 1) * 5)];
 const worldMod = id => !!(G.world.mod && G.world.mod.id === id);
@@ -23,7 +26,7 @@ function depthWorld(depth) {
   const roll = list => list[Math.floor(rng() * list.length)];
   const env = roll(WORLDS), foe = roll(WORLDS), bossFrom = roll(WORLDS);
   const mod = roll(DEPTH_MODS), bossAffix = roll(DEPTH_BOSS_AFFIXES);
-  const last = WORLDS[WORLDS.length - 1];
+  const last = WORLDS.find(w => w.id === DEPTH_BASE);
   return Object.assign({}, env, {
     id: 'depths', depth, rooms: DEPTH_ROOMS,
     name: env === foe ? `Deep ${env.noun}` : `${foe.adj} ${env.noun}`,

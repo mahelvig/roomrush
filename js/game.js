@@ -54,7 +54,7 @@ function enterRoom(idx) {
   room.fxTiles = [];
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const t = room.grid[tileIndex(c, r)];
-    if (t === TILE.LAVA || t === TILE.WATER || t === TILE.SPIKES) room.fxTiles.push([c, r, t]);
+    if (t === TILE.LAVA || t === TILE.WATER || t === TILE.SPIKES || windOf(t)) room.fxTiles.push([c, r, t]);
   }
   rebuildRoomBG();
   G.enemies = []; G.shots = []; G.eshots = []; G.pickups = []; G.zones = []; G.warns = []; G.strikes = []; G.abilityFx = [];
@@ -63,7 +63,7 @@ function enterRoom(idx) {
   Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0 });
   p.volleys.length = 0;
   for (const h of G.helpers) { h.x = p.x; h.y = p.y; }
-  Object.assign(G, { cleared: false, clearT: 0, perkShown: false, doorOpen: false, doorT: 0, boss: null, bossDead: false, bossDeadT: 0, winShown: false });
+  Object.assign(G, { cleared: false, clearT: 0, perkShown: false, doorOpen: false, doorT: 0, boss: null, bossDead: false, bossDeadT: 0, winShown: false, gale: null, galeDir: null });
   G.camY = cameraTarget();
   G.run.room = idx;
   G.run.hp = p.hp;
@@ -376,7 +376,7 @@ function updateGame(dt) {
 
 function contactDamage(p) {
   for (const e of G.enemies) {
-    if (e.spawnT > 0 || e.dead || e.hidden || (e.z || 0) > 8 || e.status.freeze > 0 || e.def.harmless) continue;
+    if (e.spawnT > 0 || e.dead || e.hidden || e.statue || (e.z || 0) > 8 || e.status.freeze > 0 || e.def.harmless) continue;
     const rr = e.r + p.r - 4;
     const d2 = dist2(p.x, p.y, e.x, e.y);
     if (d2 >= rr * rr) continue;
@@ -423,8 +423,22 @@ function updateShots(dt) {
         b.vy = Math.sin(a) * sp;
       }
     }
+    const wind = windOf(tileAt(b.x, b.y));
+    if (wind) b.vx += wind * 220 * dt;
+    if (b.boomerang) {
+      // out to its range (or a wall or the first hit), then back to the hero, over walls
+      b.dist = (b.dist || 0) + Math.hypot(b.vx, b.vy) * dt;
+      if (!b.back && b.dist > b.range) { b.back = true; b.hit.length = 0; }
+      if (b.back) {
+        const p = G.player, sp = Math.hypot(b.vx, b.vy);
+        const a = angleTo(b.x, b.y, p.x, p.y);
+        b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
+        if (dist2(b.x, b.y, p.x, p.y) < 16 * 16) { S.splice(i, 1); continue; }
+      }
+    }
     const nx = b.x + b.vx * dt, ny = b.y + b.vy * dt;
-    if (tileAt(nx, ny) === TILE.WALL) {
+    if (b.boomerang && !b.back && tileAt(nx, ny) === TILE.WALL) { b.back = true; b.hit.length = 0; continue; }
+    if (!(b.boomerang && b.back) && tileAt(nx, ny) === TILE.WALL) {
       if (b.bounce > 0) {
         b.bounce--;
         const hx = tileAt(nx, b.y) === TILE.WALL, hy = tileAt(b.x, ny) === TILE.WALL;
@@ -461,6 +475,7 @@ function updateShots(dt) {
         }
       }
       if (b.pierce > 0) { b.pierce--; continue; }
+      if (b.boomerang && !b.back) { b.back = true; b.hit = [e.id]; break; }   // turns round: one more hit on the way back
       gone = true;
       break;
     }
@@ -478,6 +493,13 @@ function updateEnemyShots(dt, p) {
       const k = 1 + b.accel * dt;
       b.vx *= k; b.vy *= k;
     }
+    if (b.homing) {   // slowly turns towards the hero
+      const sp = Math.hypot(b.vx, b.vy);
+      const a = Math.atan2(b.vy, b.vx) + clamp(angleDiff(Math.atan2(b.vy, b.vx), angleTo(b.x, b.y, p.x, p.y)), -b.homing * dt, b.homing * dt);
+      b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
+    }
+    const wind = windOf(tileAt(b.x, b.y));
+    if (wind) b.vx += wind * 160 * dt;
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     // lobbed shots (ghost) pass over the scenery and only stop at the edge of the room
@@ -527,6 +549,10 @@ function updateStrikes(dt, p) {
       if (s.kind === 'root') {
         G.zones.push({ x: s.x, y: s.y, r: s.r, life: 0.6, max: 0.6, dmg: 0, kind: 'root' });
         FX.burst(s.x, s.y, ['#8a5a36', '#5fbf4a'], s.quiet ? 1 : 5, { min: 40, max: 110 });
+      } else if (s.kind === 'bolt') {
+        FX.bolt(s.x + rand(-30, 30), s.y - 260, s.x, s.y, '#ffe55a', 3);
+        FX.ring(s.x, s.y, s.r * 1.2, '#ffe55a', 0.3, 4);
+        FX.burst(s.x, s.y, ['#ffe55a', '#ffffff'], s.quiet ? 3 : 8, { type: 'spark', min: 60, max: 180 });
       } else {
         FX.ring(s.x, s.y, s.r * 1.4, '#ff8a2a', 0.4, 5);
         FX.burst(s.x, s.y, ['#ff8a2a', '#ffd35a', '#5a3a36'], 12, { min: 60, max: 180 });
@@ -534,7 +560,7 @@ function updateStrikes(dt, p) {
         if (s.zone) G.zones.push({ x: s.x, y: s.y, r: s.r * 0.8, life: 2.4, max: 2.4, dmg: Math.round(s.dmg * 0.35), color: '#ff7a2a' });
       }
       // a field of many strikes makes one sound per beat, not one each
-      if (!s.quiet || G.time - (G.strikeSoundT || 0) > 0.12) { Sound.play('slam'); G.strikeSoundT = G.time; }
+      if (!s.quiet || G.time - (G.strikeSoundT || 0) > 0.12) { Sound.play(s.kind === 'bolt' ? 'zap' : 'slam'); G.strikeSoundT = G.time; }
     } else {
       for (const e of G.enemies) {
         if (canTarget(e) && dist(e.x, e.y, s.x, s.y) < s.r + e.r) {
@@ -608,7 +634,8 @@ function rebuildRoomBG() {
 
 // ---------- drawing ----------
 
-const ART_TOP = { treant: 2.4, magmaKing: 1.5, lich: 2, stump: 1.6, mushroom: 1.3, mage: 1.8, goblin: 1.6, skeleton: 1.7, yeti: 1.3, golem: 1.2 };
+const ART_TOP = { treant: 2.4, magmaKing: 1.5, lich: 2, stump: 1.6, mushroom: 1.3, mage: 1.8, goblin: 1.6, skeleton: 1.7, yeti: 1.3, golem: 1.2,
+  sentinel: 1.6, gargoyle: 1.5, shaman: 2.1, tortoise: 1.1, harpy: 1.6, roc: 1.7 };
 
 function drawGame(ctx) {
   const w = G.world, t = G.time, p = G.player;
@@ -709,6 +736,7 @@ function drawGame(ctx) {
   for (const b of G.eshots) drawEnemyShot(ctx, b, t);
   for (const s of G.strikes) if (s.kind === 'meteor' && s.t < 0.55) drawMeteor(ctx, s, t);
   FX.draw(ctx);
+  if (G.galeDir) drawGale(ctx, t);
   if (worldMod('dark') && !p.dead) drawDarkness(ctx, p);
 
   // health bars
@@ -804,6 +832,22 @@ function drawBeam(ctx, e, L, t) {
     line(ctx, e.x, e.y, x2, y2, rgba(e.pal.light, 0.8), 13 * wob);
     line(ctx, e.x, e.y, x2, y2, '#ffffff', 5);
   }
+}
+
+// The Storm Roc's gale: white streaks blowing the way the wind goes.
+function drawGale(ctx, t) {
+  const d = G.galeDir, strong = !!G.gale;
+  ctx.save();
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 26; i++) {
+    const k = (t * (strong ? 1.4 : 0.6) + i * 0.137) % 1;
+    const across = ((i * 97) % 100) / 100;
+    const x = d.x ? (d.x > 0 ? k : 1 - k) * WORLD_W : across * WORLD_W;
+    const y = d.y ? G.camY + k * G.viewH : G.camY + across * G.viewH;
+    ctx.strokeStyle = `rgba(255,255,255,${(strong ? 0.5 : 0.25) * Math.sin(k * Math.PI)})`;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - d.x * 22, y - d.y * 22); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // A boss behind its crystal shield: a bubble round it, and a line from each crystal still standing.

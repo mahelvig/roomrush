@@ -237,7 +237,7 @@ const UI = {
           <span>Endless worlds, each harder than the last. How deep can you go?</span>
           <span class="best">${save.depthBest ? `Deepest: depth ${save.depthBest}` : 'Not played yet'}</span>
         </div>
-        ${open ? '' : `<div class="lock">${SVG.lock}<span>Beat ${WORLDS[WORLDS.length - 1].name}</span></div>`}
+        ${open ? '' : `<div class="lock">${SVG.lock}<span>Beat ${WORLDS.find(w => w.id === DEPTH_BASE).name}</span></div>`}
       </button>
       ${open && depthStarts().length > 1 ? this.depthRow() : ''}`;
     this.open(`
@@ -791,6 +791,11 @@ function drawWorldPreview(ctx, w, h, t, i) {
   if (world.hazards.water) { ctx.fillStyle = th.water; ctx.fillRect(W * 0.62, 58, W * 0.4, 30); }
   if (world.hazards.lava) { ctx.fillStyle = th.lava; ctx.fillRect(W * 0.55, 60, W * 0.5, 30); ctx.fillStyle = 'rgba(255,220,120,0.5)'; ctx.fillRect(W * 0.6, 66, W * 0.3, 6); }
   if (world.hazards.ice) { ctx.fillStyle = th.ice; ctx.fillRect(W * 0.5, 58, W * 0.6, 30); }
+  if (world.hazards.void) {
+    ctx.fillStyle = th.sky; ctx.fillRect(W * 0.58, 58, W * 0.5, 30);
+    ctx.fillStyle = th.rock; ctx.fillRect(W * 0.58, 58, W * 0.5, 6);
+    for (const [x, y, r] of [[W * 0.7, 76, 5], [W * 0.75, 74, 6], [W * 0.8, 76, 5]]) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill(); }
+  }
   drawObstacle(ctx, world, world.obstacles[0], 18, 30, rng);
   drawObstacle(ctx, world, world.obstacles[world.obstacles.length - 1], W - 16, 22, rng);
   const a = fakeEnemy(world.enemies[0], W * 0.3, 52 + Math.sin(t * 3) * 2);

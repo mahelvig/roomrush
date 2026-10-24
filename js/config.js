@@ -10,7 +10,8 @@ const WORLD_W = 360, WORLD_H = ROOM_Y + ROOM_H + 34;
 const DOOR_X = WORLD_W / 2, DOOR_W = 56;
 const ROOMS_PER_WORLD = 20;
 
-const TILE = { FLOOR: 0, WALL: 1, WATER: 2, LAVA: 3, ICE: 4, SPIKES: 5 };
+// VOID: a gap in a floating island (you fall); WIND_L / WIND_R: wind that pushes everything sideways.
+const TILE = { FLOOR: 0, WALL: 1, WATER: 2, LAVA: 3, ICE: 4, SPIKES: 5, VOID: 6, WIND_L: 7, WIND_R: 8 };
 
 // How fast rooms get harder within a world (per room after the first).
 const DIFFICULTY = {
@@ -60,6 +61,13 @@ const HEROES = [
     passive: 'Starts every run with a combat drone', ability: 'turret',
     pal: { skin: '#f2c29b', main: '#ff8a3d', dark: '#c45a1c', accent: '#3fd1c8', hair: '#3b2a24', eye: '#2b2140' },
   },
+  {
+    id: 'windcaller', name: 'Zephyr', title: 'The Windcaller', cost: 150,
+    hp: 500, atk: 38, interval: 0.5, speed: 118, crit: 0.08,
+    weapon: 'boomerang', shot: 'boomerang', shotSpeed: 440,
+    passive: 'Boomerangs fly back and can hit twice', ability: 'gust',
+    pal: { skin: '#f5c9a6', main: '#3fb8d6', dark: '#25799a', accent: '#f4f1e6', hair: '#eef6ff', eye: '#2b2140' },
+  },
 ];
 const HERO_BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
 
@@ -78,6 +86,10 @@ const ABILITIES = {
   turret: {
     name: 'Deploy Turret', cd: 20, icon: 'turret',
     desc: L => `Set down a turret that shoots for ${8 + L} seconds`,
+  },
+  gust: {
+    name: 'Gale Burst', cd: 13, icon: 'gust',
+    desc: L => `Blast enemies and their shots away from you: ${+(1.5 + 0.3 * L).toFixed(1)}× your shot damage`,
   },
 };
 
@@ -158,6 +170,22 @@ const WORLDS = [
       ice: '#c4ecff', iceDark: '#8fd0f2',
     },
   },
+  {
+    id: 'sky', name: 'Skyward Ruins', short: 'Ruins', adj: 'Windswept', noun: 'Ruins',
+    blurb: 'Ancient ruins on floating islands. Mind the edges: a fall hurts.',
+    hpMult: 3.4, dmgMult: 2.1, coinMult: 3.1,
+    enemies: ['harpy', 'sentinel', 'windSpirit', 'gargoyle', 'stormShaman', 'tortoise'],
+    elites: ['harpyQueen', 'thunderShaman', 'ancientGargoyle'],
+    boss: 'stormRoc',
+    hazards: { void: 0.85, wind: 0.5 },
+    obstacles: ['column', 'column', 'urn', 'boulder'],
+    music: 'sky',
+    theme: {
+      bg: '#5d93cc', outer: '#8cc6f2', wall: '#a39886', wallTop: '#c9bfa9',
+      floorA: '#e4dccb', floorB: '#dbd2bf', detail: '#c4b8a0', moss: '#8cc56a',
+      sky: '#9ad0f7', skyDeep: '#5d93cc', rock: '#8a7f6e',
+    },
+  },
 ];
 
 // Bullet styles used by enemies.
@@ -172,6 +200,8 @@ const SHOTS = {
   bone:   { kind: 'bone',  color: '#f4ecd8', r: 5 },
   ice:    { kind: 'ice',   color: '#7fdcff', r: 6, slow: true },
   soul:   { kind: 'orb',   color: '#9ff5ff', r: 6 },
+  feather:{ kind: 'feather', color: '#f4f1e6', r: 5 },
+  zap:    { kind: 'orb',   color: '#ffe55a', r: 6 },
   dark:   { kind: 'orb',   color: '#b45cff', r: 7 },
 };
 
@@ -240,6 +270,38 @@ const ENEMIES = {
     jump: { every: 3.4, dur: 0.8, radius: 46, ring: 10, speed: 120, shot: 'rock' },
   },
 
+  // --- Skyward Ruins ---
+  harpy: {
+    name: 'Harpy', art: 'harpy', ai: 'charger', hp: 80, dmg: 60, speed: 72, r: 12, cost: 1.2, coins: 2, flying: true,
+    pal: { main: '#c98bd6', dark: '#8a4fa0', light: '#ffd35a' },
+    dash: { every: 2.6, windup: 0.6, speed: 360, dur: 0.7, count: 1 },
+  },
+  sentinel: {
+    name: 'Stone Sentinel', art: 'sentinel', ai: 'turret', hp: 140, dmg: 55, speed: 0, r: 14, cost: 1.4, coins: 3,
+    pal: { main: '#b9b0a0', dark: '#7d7466', light: '#ffe55a' },
+    fire: { every: 2.8, shots: 1, spread: 0, speed: 95, shot: 'zap', homing: 1.6 },
+  },
+  windSpirit: {
+    name: 'Wind Spirit', art: 'windspirit', ai: 'gust', hp: 85, dmg: 55, speed: 0, r: 12, cost: 1.3, coins: 2, flying: true,
+    pal: { main: '#e9f6ff', dark: '#9cc8e6', light: '#ffffff' },
+    gust: { every: 2.4, radius: 105, push: 300 },
+  },
+  gargoyle: {
+    name: 'Gargoyle', art: 'gargoyle', ai: 'gargoyle', hp: 160, dmg: 70, speed: 52, r: 13, cost: 1.5, coins: 3,
+    pal: { main: '#8f8a9e', dark: '#5d586c', light: '#ff5a5a' },
+    dash: { every: 2.4, windup: 0.55, speed: 360, dur: 0.55, count: 1 }, wake: 140,
+  },
+  stormShaman: {
+    name: 'Storm Shaman', art: 'shaman', ai: 'shaman', hp: 120, dmg: 70, speed: 48, r: 13, cost: 1.7, coins: 4,
+    pal: { main: '#5a6fd6', dark: '#34439a', light: '#ffe55a' },
+    cast: { every: 3.0, count: 3, radius: 26, delay: 0.9 },
+  },
+  tortoise: {
+    name: 'Rock Tortoise', art: 'tortoise', ai: 'tortoise', hp: 220, dmg: 65, speed: 24, r: 16, cost: 2.1, coins: 5, shell: true,
+    pal: { main: '#9a8a6a', dark: '#6b5e44', light: '#8cc56a' },
+    fire: { every: 2.6, shots: 3, spread: 0.5, speed: 120, shot: 'rock' },
+  },
+
   // --- Frozen Crypt ---
   skeleton: {
     name: 'Skeleton', art: 'skeleton', ai: 'chaser', hp: 110, dmg: 65, speed: 64, r: 12, cost: 1, coins: 2,
@@ -275,7 +337,7 @@ const ENEMIES = {
 // Elites are bigger, tougher copies of normal enemies with extra tricks.
 function eliteOf(base, extra) {
   const e = Object.assign({}, ENEMIES[base], extra, { elite: true });
-  for (const k of ['hop', 'fire', 'dash', 'jump', 'blast']) {
+  for (const k of ['hop', 'fire', 'dash', 'jump', 'blast', 'cast', 'gust']) {
     if (ENEMIES[base][k] && extra[k]) e[k] = Object.assign({}, ENEMIES[base][k], extra[k]);
   }
   e.hp = ENEMIES[base].hp * (extra.hpMult || 9);
@@ -315,6 +377,18 @@ Object.assign(ENEMIES, {
     name: 'Elder Yeti', r: 26, hpMult: 8, jump: { every: 2.4, ring: 16, radius: 60 }, jumps: 2,
     pal: { main: '#dfe9f7', dark: '#9fb3cf', light: '#4f86d9' },
   }),
+  harpyQueen: eliteOf('harpy', {
+    name: 'Harpy Queen', r: 18, hpMult: 8, dash: { count: 3, windup: 0.45 }, diveRing: 8,
+    pal: { main: '#e07ad0', dark: '#9a3f8a', light: '#ffd35a' },
+  }),
+  thunderShaman: eliteOf('stormShaman', {
+    name: 'Thunder Shaman', r: 18, hpMult: 8, cast: { every: 2.3, count: 6 },
+    pal: { main: '#3f4fb8', dark: '#232d7a', light: '#ffe55a' },
+  }),
+  ancientGargoyle: eliteOf('gargoyle', {
+    name: 'Ancient Gargoyle', r: 20, hpMult: 9, dash: { count: 3, windup: 0.45 }, wallRing: 8,
+    pal: { main: '#6f6a80', dark: '#45405a', light: '#ff8a3a' },
+  }),
   // Shield crystals a boss raises at 60% and 25% HP (bosses.js). HP is set from the boss.
   crystal: {
     name: 'Shield Crystal', art: 'crystal', ai: 'crystal', hp: 1, dmg: 0, speed: 0, r: 13, cost: 0, coins: 0, harmless: true,
@@ -342,6 +416,12 @@ const BOSSES = {
     pal: { main: '#3d3260', dark: '#211a3a', light: '#7ff3ff' },
     moves: ['spiral', 'laser', 'teleport', 'summon', 'ring', 'fan'], sig: 'mirror',
     shot: 'ice', altShot: 'bone', summon: ['skeleton', 'ghost'], flying: true,
+  },
+  stormRoc: {
+    name: 'Storm Roc', art: 'roc', hp: 60000, dmg: 280, speed: 32, r: 34, coins: 450, gems: 4,
+    pal: { main: '#6b7a99', dark: '#3e4866', light: '#ffe55a' },
+    moves: ['gale', 'fan', 'charge', 'ring', 'summon', 'spiral'], sig: 'tempest',
+    shot: 'feather', altShot: 'zap', summon: ['harpy', 'windSpirit'], flying: true,
   },
 };
 // Phase lines: below these shares of HP the boss raises a crystal shield and gets angrier.

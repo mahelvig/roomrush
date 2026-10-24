@@ -170,6 +170,17 @@ function drawHero(ctx, hero, st) {
     ctx.arc(sx * 1.4, -11, 7.2, Math.PI * 1.05, Math.PI * 1.95);
     ctx.fillStyle = col(P.hair); ctx.fill();
     shine(ctx, -3, -16, 3, 1.6, 0.35);
+  } else if (hero.weapon === 'boomerang') {
+    circ(ctx, 0, -10, 8.6); fs(ctx, P.skin);
+    // windswept white hair and a scarf blowing back
+    ctx.beginPath();
+    ctx.moveTo(-9, -10); ctx.quadraticCurveTo(-8, -21, 2, -20); ctx.quadraticCurveTo(-sx * 14, -24 + Math.sin(st.t * 7), -sx * 15, -14);
+    ctx.quadraticCurveTo(-sx * 10, -15, -9, -10);
+    fs(ctx, P.hair, 1.6);
+    rrect(ctx, -9, -15, 18, 3.6, 1.8); fs(ctx, P.main, 1.4);
+    ctx.beginPath(); ctx.moveTo(-sx * 6, -13.5); ctx.quadraticCurveTo(-sx * 15, -12 + Math.sin(st.t * 8) * 2, -sx * 19, -9 + Math.sin(st.t * 9) * 2);
+    ctx.lineTo(-sx * 15, -11); ctx.closePath();
+    fs(ctx, P.main, 1.4);
   } else if (hero.weapon === 'staff') {
     circ(ctx, 0, -10, 8.6); fs(ctx, P.skin);
     ctx.beginPath();
@@ -253,6 +264,13 @@ function drawHeroWeapon(ctx, hero, st, sx) {
     glow(ctx, 0, -18, 12 + st.recoil * 10, P.accent);
     ell(ctx, 0, -18, 3.6, 4.6); fs(ctx, P.accent, 1.6);
     shine(ctx, -1, -19.5, 1.2, 1.8, 0.7, 0);
+  } else if (hero.weapon === 'boomerang') {
+    if (st.ready || st.recoil < 0.3) {   // in the hand when not just thrown
+      ctx.rotate(-0.5 + st.recoil);
+      ctx.beginPath(); ctx.moveTo(-2, -7); ctx.quadraticCurveTo(5, -4, 7, 0); ctx.quadraticCurveTo(5, 4, -2, 7);
+      ctx.lineTo(1, 7); ctx.quadraticCurveTo(9, 4, 10, 0); ctx.quadraticCurveTo(9, -4, 1, -7); ctx.closePath();
+      fs(ctx, P.accent, 1.6);
+    }
   } else {
     rrect(ctx, -4, -3.5, 13, 7, 2.5); fs(ctx, '#5a6478', 1.8);
     rrect(ctx, 7, -2.2, 6, 4.4, 1.5); fs(ctx, '#3a4050', 1.5);
@@ -709,6 +727,150 @@ const ENEMY_ART = {
     }
   },
 
+
+  // ---------------- Skyward Ruins ----------------
+  harpy(ctx, e, t) {
+    const P = e.pal;
+    const dive = e.state === 'dash', wind = e.state === 'windup';
+    const flap = dive ? 0 : Math.sin(t * 14 + e.seed) * 5;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    ctx.translate(0, Math.sin(t * 3 + e.seed) * 1.5 - 4);
+    for (const s of [-1, 1]) {
+      const tip = wind ? -17 : -8 - flap;
+      ctx.beginPath();
+      ctx.moveTo(s * 4, -2);
+      ctx.quadraticCurveTo(s * 13, tip - 4, s * (dive ? 13 : 20), tip);
+      ctx.lineTo(s * 16, tip + 5); ctx.lineTo(s * 18, tip + 9); ctx.lineTo(s * 12, tip + 9); ctx.lineTo(s * 12, tip + 13);
+      ctx.quadraticCurveTo(s * 8, 4, s * 4, 4);
+      ctx.closePath();
+      fs(ctx, P.dark, 1.8);
+    }
+    ell(ctx, 0, 3, 6.5, 7.5); fs(ctx, P.main);
+    for (const s of [-1, 1]) oline(ctx, s * 2.5, 9, s * 3.5, 13, P.light, 1.6);
+    circ(ctx, 0, -7, 6); fs(ctx, '#f6d7c3');
+    ctx.beginPath(); ctx.moveTo(-5, -10); ctx.quadraticCurveTo(-sx * 2, -20, sx * 7, -15); ctx.quadraticCurveTo(2, -12, 5, -10); ctx.closePath();
+    fs(ctx, P.main, 1.5);
+    eyes(ctx, sx * 0.6, -7, 2.4, 1.5, e.look, { white: P.light, angry: true, pupil: 0.5 });
+    if (e.def.elite) crown(ctx, 0, -16, 0.7);
+  },
+
+  sentinel(ctx, e, t) {
+    const P = e.pal;
+    const puff = e.puff || 0;
+    rrect(ctx, -12, 6, 24, 7, 2); fs(ctx, P.dark, 1.8);
+    ctx.beginPath(); ctx.moveTo(-9, 7); ctx.lineTo(-7, -16); ctx.lineTo(0, -21); ctx.lineTo(7, -16); ctx.lineTo(9, 7); ctx.closePath();
+    fs(ctx, P.main, 2);
+    line(ctx, -6, -1, 6, -1, darken(P.main, 0.22), 1.4);
+    line(ctx, -5, 3, 5, 3, darken(P.main, 0.22), 1.4);
+    glow(ctx, 0, -9, 14 + puff * 12, P.light, 0.75);
+    circ(ctx, 0, -9, 3.6); fs(ctx, P.light, 1.4);
+    circ(ctx, Math.cos(e.look) * 1.3, -9 + Math.sin(e.look) * 1.3, 1.4); ctx.fillStyle = OL; ctx.fill();
+    shine(ctx, -4, -13, 1.5, 3, 0.35);
+  },
+
+  windspirit(ctx, e, t) {
+    const P = e.pal;
+    const ch = e.state === 'charge' ? clamp(1 - e.t / 0.75, 0, 1) : 0;
+    ctx.translate(0, Math.sin(t * 3 + e.seed) * 2 - 4);
+    glow(ctx, 0, 0, 22 + ch * 16, '#ffffff', 0.5);
+    for (let i = 0; i < 3; i++) {
+      const a = t * (4 + i) + i * 2;
+      ctx.beginPath(); ctx.arc(0, 0, 8 + i * 3.5 + ch * 5, a, a + 3.4);
+      ctx.strokeStyle = `rgba(255,255,255,${0.7 - i * 0.18})`; ctx.lineWidth = 2.4; ctx.stroke();
+    }
+    for (const [x, y, r] of [[-5, 2, 6], [5, 2, 6], [0, -3, 7]]) { circ(ctx, x, y, r); fs(ctx, P.main, 1.6); }
+    for (const [x, y, r] of [[-5, 2, 4.6], [5, 2, 4.6]]) { circ(ctx, x, y, r); ctx.fillStyle = col(P.main); ctx.fill(); }
+    eyes(ctx, 0, -1, 2.6, 1.6, e.look, { white: false, color: OL, pupil: 0.9, angry: true });
+  },
+
+  gargoyle(ctx, e, t) {
+    const P = e.pal;
+    const statue = e.statue;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const shake = e.state === 'windup' ? Math.sin(t * 60) * 1.2 : 0;
+    ctx.translate(shake, 0);
+    if (statue) { rrect(ctx, -13, 7, 26, 6, 2); fs(ctx, '#7d7888', 1.8); }
+    for (const s of [-1, 1]) {
+      const spread = statue ? 0 : 4;
+      ctx.beginPath();
+      ctx.moveTo(s * 5, -4); ctx.lineTo(s * (13 + spread), -16 - spread); ctx.lineTo(s * 15, -6); ctx.lineTo(s * (14 + spread), 0); ctx.lineTo(s * 8, 4);
+      ctx.closePath();
+      fs(ctx, P.dark, 1.8);
+    }
+    ell(ctx, 0, 3, 9, 8); fs(ctx, P.main);
+    for (const s of [-1, 1]) { ell(ctx, s * 6, 9, 3.2, 2.4); fs(ctx, P.dark, 1.5); }
+    circ(ctx, sx, -7, 6.5); fs(ctx, P.main);
+    for (const s of [-1, 1]) {
+      const h = e.def.elite ? 9 : 6;
+      ctx.beginPath(); ctx.moveTo(sx + s * 3, -11); ctx.lineTo(sx + s * 6, -11 - h); ctx.lineTo(sx + s * 6.5, -10); ctx.closePath();
+      fs(ctx, P.dark, 1.4);
+    }
+    if (statue) {
+      for (const s of [-1, 1]) { ell(ctx, sx + s * 2.4, -7, 1.3, 1.1); ctx.fillStyle = darken(P.main, 0.45); ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-2, 3); ctx.lineTo(-4, 8);
+      ctx.strokeStyle = darken(P.main, 0.3); ctx.lineWidth = 1; ctx.stroke();
+    } else {
+      glowEyes(ctx, sx, -7.5, 2.4, 1.3, P.light);
+      ctx.beginPath(); ctx.moveTo(sx - 3, -3); ctx.lineTo(sx - 1.5, -1.5); ctx.lineTo(sx, -3); ctx.lineTo(sx + 1.5, -1.5); ctx.lineTo(sx + 3, -3);
+      ctx.strokeStyle = OL; ctx.lineWidth = 1.3; ctx.stroke();
+    }
+  },
+
+  shaman(ctx, e, t) {
+    const P = e.pal;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const cast = e.state === 'cast';
+    ctx.translate(0, -Math.sin(t * 8 + e.seed) * (e.moving ? 1.2 : 0.4));
+    ctx.beginPath();
+    ctx.moveTo(-10, 11); ctx.quadraticCurveTo(-9, -3, 0, -5); ctx.quadraticCurveTo(9, -3, 10, 11); ctx.quadraticCurveTo(0, 14, -10, 11);
+    fs(ctx, P.main);
+    line(ctx, 0, -3, 0, 11, col(P.dark), 1.6);
+    ctx.save();
+    ctx.translate(sx * 11, 0);
+    ctx.rotate(cast ? -sx * 0.3 : 0);
+    oline(ctx, 0, 12, 0, -16, '#7a5a3a', 2.2);
+    glow(ctx, 0, -19, cast ? 26 : 12, P.light, 1);
+    circ(ctx, 0, -19, 3.2); fs(ctx, P.light, 1.4);
+    if (cast) bolt(ctx, 0, -28, 4, P.light);
+    ctx.restore();
+    circ(ctx, 0, -9, 7); fs(ctx, P.dark);
+    for (const [dx, h, c] of [[-6, 9, '#ff8a3a'], [-2, 13, '#ffe55a'], [2, 13, '#ffe55a'], [6, 9, '#ff8a3a']]) {
+      ctx.beginPath(); ctx.moveTo(dx - 1.6, -13); ctx.lineTo(dx, -13 - h); ctx.lineTo(dx + 1.6, -13); ctx.closePath();
+      fs(ctx, c, 1.2);
+    }
+    rrect(ctx, -5.5, -12, 11, 6.5, 2.5); fs(ctx, '#f4f1e6', 1.4);
+    eyes(ctx, sx * 0.5, -9, 2.4, 1.4, e.look, { white: P.light, angry: true, pupil: 0.5 });
+  },
+
+  tortoise(ctx, e, t) {
+    const P = e.pal;
+    const open = e.shellOpen;
+    const sx = Math.cos(e.look) >= 0 ? 1 : -1;
+    const step = Math.sin(t * 6 + e.seed) * (e.moving ? 1.5 : 0);
+    ctx.save();
+    ctx.scale(sx, 1);
+    for (const [x, ph] of [[-10, 1], [-4, -1], [4, 1], [10, -1]]) { rrect(ctx, x - 2.5, 6 + step * ph * 0.4, 5, 6, 2); fs(ctx, '#a89a76', 1.5); }
+    const hx = open ? 18 : 13;
+    ell(ctx, hx, 1, 5.5, 4.5); fs(ctx, '#a89a76', 1.6);
+    ell(ctx, hx + 2, 0, 1.3, 1.5); ctx.fillStyle = OL; ctx.fill();
+    if (open) { ctx.beginPath(); ctx.ellipse(hx + 4, 3, 2, 1.4, 0, 0, TAU); ctx.fillStyle = OL; ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(-16, 6); ctx.quadraticCurveTo(-16, -14, 0, -15); ctx.quadraticCurveTo(16, -14, 16, 6); ctx.closePath();
+    fs(ctx, P.main, 2.2);
+    for (const [x, y] of [[-8, -4], [0, -9], [8, -4], [0, 1]]) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; ctx.lineTo(x + Math.cos(a) * 4.2, y + Math.sin(a) * 3.4); }
+      ctx.closePath(); ctx.strokeStyle = col(P.dark); ctx.lineWidth = 1.3; ctx.stroke();
+    }
+    for (const [x, y] of [[-5, -12], [3, -13], [8, -10]]) { circ(ctx, x, y, 2.2); ctx.fillStyle = col(P.light); ctx.fill(); }
+    rrect(ctx, -17, 4, 34, 4, 2); fs(ctx, P.dark, 1.6);
+    ctx.restore();
+    if (!open) {   // the hard front that blocks shots
+      ctx.beginPath(); ctx.arc(0, -3, 19, e.look - 1.05, e.look + 1.05);
+      ctx.strokeStyle = OL; ctx.lineWidth = 6; ctx.stroke();
+      ctx.strokeStyle = '#c9bfa9'; ctx.lineWidth = 3; ctx.stroke();
+    }
+  },
+
   // ---------------- bosses ----------------
   treant(ctx, e, t) {
     const P = e.pal;
@@ -831,6 +993,47 @@ const ENEMY_ART = {
     }
   },
 
+  roc(ctx, e, t) {
+    const P = e.pal;
+    const up = e.anim === 'cast';
+    const flap = Math.sin(t * (up ? 12 : 5)) * (up ? 8 : 4);
+    ctx.translate(0, Math.sin(t * 2) * 2 - 6);
+    glow(ctx, 0, 0, 60, P.light, 0.18);
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.scale(s, 1);
+      ctx.beginPath();
+      ctx.moveTo(8, -6);
+      ctx.quadraticCurveTo(30, -26 - flap, 52, -20 - flap * 1.4);
+      for (let i = 0; i < 4; i++) {
+        const x = 50 - i * 9, y = -18 - flap * 1.2 + i * 7;
+        ctx.lineTo(x + 6, y + 10); ctx.lineTo(x, y + 6);
+      }
+      ctx.quadraticCurveTo(24, 10, 10, 10);
+      ctx.closePath();
+      fs(ctx, P.main, 2.4);
+      ctx.beginPath(); ctx.moveTo(10, -4); ctx.quadraticCurveTo(28, -18 - flap, 44, -14 - flap * 1.2); ctx.quadraticCurveTo(26, -4, 12, 4); ctx.closePath();
+      ctx.fillStyle = col(P.dark); ctx.fill();
+      ctx.restore();
+    }
+    for (const dx of [-8, 0, 8]) {
+      ctx.beginPath(); ctx.moveTo(dx - 4, 16); ctx.lineTo(dx, 30); ctx.lineTo(dx + 4, 16); ctx.closePath();
+      fs(ctx, P.dark, 1.8);
+    }
+    ell(ctx, 0, 4, 18, 17); fs(ctx, P.main, 2.4);
+    ell(ctx, 0, 9, 11, 10); fs(ctx, '#e9e4d6', 1.8);
+    for (const s of [-1, 1]) oline(ctx, s * 7, 18, s * 8, 24, '#ffcf3f', 2.2);
+    circ(ctx, 0, -16, 11); fs(ctx, P.main, 2.2);
+    for (const [dx, h] of [[-6, 14], [0, 18], [6, 14]]) {
+      ctx.beginPath(); ctx.moveTo(dx - 3, -24); ctx.lineTo(dx + 2, -24 - h); ctx.lineTo(dx + 3, -23); ctx.closePath();
+      fs(ctx, P.light, 1.6);
+    }
+    ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(0, -4); ctx.lineTo(5, -14); ctx.closePath();
+    fs(ctx, '#ffcf3f', 1.8);
+    glowEyes(ctx, 0, -18, 5, 2.6, e.phase2 ? '#ff5a6e' : P.light);
+    if (e.phase3) for (let i = 0; i < 2; i++) { const a = t * 5 + i * 3; bolt(ctx, Math.cos(a) * 24, -30 + Math.sin(a) * 6, 5, P.light); }
+  },
+
   // a boss's shield crystal: a floating gem on a little stone base
   crystal(ctx, e, t) {
     const P = e.pal;
@@ -864,7 +1067,8 @@ function drawSkull(ctx, x, y, r, eyeColor, angry) {
 const ART_BASE = {
   slime: 12, bat: 10, mushroom: 13, goblin: 12, boar: 14, stump: 15, imp: 10, slug: 13, scorpion: 12,
   salamander: 12, golem: 16, skeleton: 11, ghost: 12, wisp: 11, mage: 12, yeti: 15,
-  treant: 24, magmaKing: 28, lich: 20, crystal: 13,
+  harpy: 12, sentinel: 14, windspirit: 12, gargoyle: 13, shaman: 13, tortoise: 16,
+  treant: 24, magmaKing: 28, lich: 20, roc: 28, crystal: 13,
 };
 
 function drawEnemy(ctx, e, t) {
@@ -926,6 +1130,12 @@ function drawEnemyShot(ctx, b, t) {
       ctx.beginPath(); ctx.moveTo(b.r * 1.5, 0); ctx.lineTo(0, -b.r * 0.7); ctx.lineTo(-b.r * 1.2, 0); ctx.lineTo(0, b.r * 0.7); ctx.closePath();
       fs(ctx, c, 1.6);
       shine(ctx, 1, -1, b.r * 0.6, b.r * 0.25, 0.7, 0);
+      break;
+    case 'feather':
+      ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(8, 0); ctx.quadraticCurveTo(0, -4.5, -8, 0); ctx.quadraticCurveTo(0, 4.5, 8, 0);
+      fs(ctx, c, 1.4);
+      line(ctx, -9, 0, 7, 0, '#b9a98a', 1);
       break;
     case 'spore':
       circ(ctx, 0, 0, b.r); fs(ctx, c, 1.8);
@@ -993,6 +1203,12 @@ function drawPlayerShot(ctx, b, t) {
     case 'soul':
       glow(ctx, 0, 0, 14, '#c06bff', 1);
       circ(ctx, 0, 0, 3.6); fs(ctx, '#e0b3ff', 1.2);
+      break;
+    case 'boomerang':
+      if (b.glow) glow(ctx, 0, 0, 16, glowC, 0.8);
+      ctx.rotate(t * 18 + (b.x + b.y) * 0.01);
+      ctx.beginPath(); ctx.moveTo(-7, -6); ctx.quadraticCurveTo(0, -1, 7, -6); ctx.quadraticCurveTo(2, 3, 0, 8); ctx.quadraticCurveTo(-2, 3, -7, -6);
+      fs(ctx, b.glow ? lighten(glowC, 0.3) : '#f4f1e6', 1.5);
       break;
   }
   ctx.restore();
@@ -1348,6 +1564,14 @@ const ICONS = {
   slow(c) { ICONS.hourglass(c); },
   orbit(c) { ICONS.orbs(c); },
   // ability icons
+  gust(c) {
+    glow(c, 0, 0, 28, '#bfefff', 0.6);
+    for (let i = 0; i < 3; i++) {
+      c.beginPath(); c.arc(0, 0, 6 + i * 6, i * 1.4, i * 1.4 + 4.2);
+      c.strokeStyle = OL; c.lineWidth = 6; c.stroke();
+      c.strokeStyle = i === 1 ? '#3fb8d6' : '#e9f6ff'; c.lineWidth = 3; c.stroke();
+    }
+  },
   rain(c) {
     for (const [x, y] of [[-12, -4], [0, 2], [12, -6]]) iconArrow(c, x + 4, y - 16, x - 2, y + 14, '#f0dcb4', '#e6edf7');
     ell(c, 0, 17, 16, 4); c.fillStyle = 'rgba(255,224,122,0.5)'; c.fill();

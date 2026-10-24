@@ -122,6 +122,9 @@ function blinkIfHurt(e) {
 }
 
 // Shielded blocks shots from the front; Mirror sends every fifth hit back at you.
+// A Rock Tortoise's shell from the front only lets 30% of the damage through.
+const shellHit = (b, e) => e.def.shell && !e.shellOpen && Math.abs(angleDiff(e.look, Math.atan2(-b.vy, -b.vx))) < 1.05;
+
 function shotBlocked(b, e) {
   if (e.aff.shielded && Math.abs(angleDiff(e.shieldAng, Math.atan2(-b.vy, -b.vx))) < 0.95) return true;
   if (e.aff.mirror && b.main) {

@@ -132,6 +132,7 @@ const TRACKS = {
   woods:   { bpm: 108, root: 60, mode: 'major', chords: [0, 4, 5, 3], wave: 'triangle', arp: [0, 2, 4, 7, 4, 2, 4, 2], hat: true, lead: [7, 6, 4, null, 5, 4, 2, null] },
   caverns: { bpm: 116, root: 50, mode: 'minor', chords: [0, 5, 3, 6], wave: 'square', arp: [0, 4, 2, 4, 0, 4, 7, 4], hat: true, kick: true, drive: true, bassWave: 'sawtooth' },
   crypt:   { bpm: 90,  root: 55, mode: 'minor', chords: [0, 3, 5, 4], wave: 'sine', arp: [0, 2, 4, 9, 7, 4, 2, null], hat: true, lead: [4, null, 3, 2, null, 0, 1, null] },
+  sky:     { bpm: 100, root: 62, mode: 'major', chords: [0, 3, 5, 4], wave: 'triangle', arp: [0, 4, 7, 9, 7, 4, 2, 4], hat: true, lead: [9, null, 7, 4, null, 5, 4, null] },
   boss:    { bpm: 142, root: 48, mode: 'minor', chords: [0, 0, 5, 6], wave: 'square', arp: [0, 7, 4, 7, 2, 7, 4, 7], hat: true, kick: true, drive: true, bassWave: 'sawtooth' },
 };
 

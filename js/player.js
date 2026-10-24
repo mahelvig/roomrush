@@ -26,11 +26,22 @@ function refreshStats(p) {
   syncHelpers(p);
 }
 
+function playerFall(p) {
+  FX.burst(p.x, p.y, ['#ffffff', '#9ad0f7'], 14, { min: 30, max: 100 });
+  p.x = p.safeX ?? DOOR_X; p.y = p.safeY ?? ROOM_Y + ROOM_H - 36;
+  p.vx = p.vy = p.pushX = p.pushY = 0;
+  // a fall always costs HP, even right after being hit, so falling never works as a way to stay safe
+  hurtPlayer(Math.round(p.s.maxHp * 0.1), { hazard: true, always: true });
+  p.invuln = Math.max(p.invuln, 0.5);
+  FX.text(p.x, p.y - 30, 'Fell!', '#9ad0f7', 12);
+  FX.burst(p.x, p.y, ['#ffffff', '#9ad0f7'], 10, { min: 20, max: 70 });
+}
+
 const rageMult = p => 1 + p.s.rage * clamp(1 - p.hp / p.s.maxHp, 0, 1);
 const playerAtk = p => p.s.atk * (1 + p.s.atkPct) * rageMult(p);
 
 function canTarget(e) {
-  return !e.dead && e.spawnT <= 0 && !e.hidden;
+  return !e.dead && e.spawnT <= 0 && !e.hidden && !e.statue;
 }
 
 function findTarget(p) {
@@ -61,6 +72,21 @@ function updatePlayer(p, dt) {
   if (G.doorOpen && Math.abs(p.x - DOOR_X) < DOOR_W / 2 - 6) minY = ROOM_Y - 40;
   moveEntity(p, p.vx * dt, p.vy * dt, true, minY);
   if (G.doorOpen && p.y < ROOM_Y - 4) { nextRoom(); return; }
+  // wind tiles, gusts and the Storm Roc's gale push the hero around
+  const under = tileAt(p.x, p.y + 4);
+  if (windOf(under) || p.pushX || p.pushY || G.gale) {
+    const px = (p.pushX || 0) + windOf(under) * 75 + (G.gale ? G.gale.x : 0);
+    const py = (p.pushY || 0) + (G.gale ? G.gale.y : 0);
+    moveEntity(p, px * dt, py * dt, true, minY);
+    const k = Math.exp(-6 * dt);
+    p.pushX = (p.pushX || 0) * k; p.pushY = (p.pushY || 0) * k;
+    if (Math.abs(p.pushX) + Math.abs(p.pushY) < 5) p.pushX = p.pushY = 0;
+  }
+  // a gap in the island: fall, and come back where it was safe
+  if (tileAt(p.x, p.y + 4) === TILE.VOID) playerFall(p);
+  else if (!windOf(under) && ![[24, 0], [-24, 0], [0, 24], [0, -20], [17, 17], [-17, 17], [17, -15], [-17, -15]].some(([dx, dy]) => tileAt(p.x + dx, p.y + 4 + dy) === TILE.VOID)) {
+    p.safeX = p.x; p.safeY = p.y;   // only well away from an edge, so you do not land on it again
+  }
   if (p.moving) { p.walk += dt * 7; p.stillT = 0; } else p.stillT += dt;
   if (onIce && Math.hypot(p.vx, p.vy) > 40 && Math.random() < dt * 20) FX.burst(p.x, p.y + 8, '#ffffff', 1, { min: 10, max: 30, life: 0.3 });
   else if (p.moving && Math.random() < dt * 6) FX.smoke(p.x - p.vx * 0.05, p.y + 8, 'rgba(255,255,255,0.5)', 1, 3);
@@ -143,8 +169,10 @@ function fireVolley(p, ang) {
       x: p.x + Math.cos(a) * 12 + px, y: p.y - 2 + Math.sin(a) * 12 + py,
       vx: Math.cos(a) * p.hero.shotSpeed, vy: Math.sin(a) * p.hero.shotSpeed,
       r: 4 * s.size, size: s.size, dmg, kind: p.hero.shot, glow: glowC,
-      pierce: s.pierce, bounce: s.wallBounce, ric: s.ricochet, hit: [], life: 2.2,
-      homing: s.homing, target: p.target, main: true,
+      pierce: s.pierce, bounce: s.wallBounce, ric: s.ricochet, hit: [], life: p.hero.shot === 'boomerang' ? 3.4 : 2.2,
+      homing: s.homing, target: p.target, main: true, boomerang: p.hero.shot === 'boomerang',
+      // a boomerang turns round just past its target (or at 220 px with nothing to aim at)
+      range: p.target ? clamp(dist(p.x, p.y, p.target.x, p.target.y) + 40, 160, 560) : 220,
     });
   }
   if (G.shots.length > MAX_SHOTS) G.shots.splice(0, G.shots.length - MAX_SHOTS);
@@ -185,7 +213,7 @@ function updateSkyAttacks(p, dt) {
 function hurtPlayer(amount, o = {}) {
   const p = G.player;
   if (!p || p.dead || G.state !== 'play' || G.bossDead) return false;
-  if (p.invuln > 0) return false;
+  if (p.invuln > 0 && !o.always) return false;
   if (!o.hazard && Math.random() < p.s.dodge) {
     FX.text(p.x, p.y - 26, 'Dodge!', '#bff1ff', 11);
     Sound.play('dodge');

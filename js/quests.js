@@ -41,7 +41,7 @@ const ACHIEVEMENTS = [
   { id: 'rooms', name: 'Explorer', goals: [100, 1000, 5000], stat: () => save.stats.rooms, text: n => `Clear ${fmt(n)} rooms` },
   { id: 'nohit', name: 'Untouchable', goals: [50, 300, 1500], stat: () => save.stats.roomsNoHit, text: n => `Clear ${fmt(n)} rooms without getting hit` },
   { id: 'flawless', name: 'Flawless', goals: [1, 5, 20], stat: () => save.stats.bossNoHit, text: n => `Defeat ${n === 1 ? 'a boss' : `${n} bosses`} without getting hit` },
-  { id: 'conqueror', name: 'Conqueror', goals: [1, 3, 6], stat: () => save.tiers[WORLDS[WORLDS.length - 1].id] ?? -1, text: n => `Clear ${WORLDS[WORLDS.length - 1].name} on ${tierName(n)}` },
+  { id: 'conqueror', name: 'Conqueror', goals: [1, 3, 6], stat: () => save.tiers.crypt ?? -1, text: n => `Clear Frozen Crypt on ${tierName(n)}` },
   { id: 'diver', name: 'Deep Diver', goals: [10, 25, 50], stat: () => save.depthBest || 0, text: n => `Reach depth ${n}` },
   { id: 'heroes', name: 'Hero of All Trades', goals: [1, 2, 3], stat: () => save.stats.heroWins.length, text: n => `Clear a world with ${n} different hero${n === 1 ? '' : 'es'}` },
   { id: 'rich', name: 'Treasure Hoarder', goals: [10000, 100000, 1000000], stat: () => save.stats.goldTotal, text: n => `Collect ${fmt(n)} gold in total` },

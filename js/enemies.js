@@ -27,6 +27,7 @@ function spawnEnemy(type, x, y, o = {}) {
     spawnT: o.spawnT !== undefined ? o.spawnT : 0.6, spawnMax: 0.6, dashes: 0,
   };
   e.spawnMax = Math.max(0.01, e.spawnT);
+  if (def.ai === 'gargoyle') e.statue = true;   // sleeps until you come close
   G.enemies.push(e);
   return e;
 }
@@ -40,7 +41,7 @@ function enemyShot(e, ang, shotKey, speed, dmgMul = 1, o = {}) {
     x: e.x + Math.cos(ang) * (e.r * 0.6), y: e.y - (e.z || 0) + Math.sin(ang) * (e.r * 0.6),
     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: sd.r, kind: sd.kind, color: sd.color,
     dmg: Math.round(e.dmg * dmgMul), slow: !!sd.slow || !!e.aff.frost, life: 7, seed: rand(0, 10),
-    accel: o.accel || 0, ghost: !!o.ghost,
+    accel: o.accel || 0, ghost: !!o.ghost, homing: o.homing || 0,
   });
 }
 function spreadShot(e, ang, n, spread, shotKey, speed, dmgMul, o) {
@@ -128,7 +129,7 @@ const AI = {
     if (e.cd <= 0) {
       e.cd = f.every * rand(0.85, 1.15);
       e.puff = 1;
-      spreadShot(e, angleTo(e.x, e.y, p.x, p.y), f.shots, f.spread, f.shot, f.speed, 1, { ghost: f.over });
+      spreadShot(e, angleTo(e.x, e.y, p.x, p.y), f.shots, f.spread, f.shot, f.speed, 1, { ghost: f.over, homing: f.homing });
       FX.smoke(e.x, e.y - 10, rgba(SHOTS[f.shot].color, 0.6), 3, 5);
     }
   },
@@ -180,6 +181,7 @@ const AI = {
           FX.kick(e.elite ? 6 : 3);
           if (e.def.wallRing) ringShot(e, e.def.wallRing, 'rock', 120, rand(0, TAU));
         }
+        if (e.def.diveRing) ringShot(e, e.def.diveRing, 'feather', 120, rand(0, TAU));
         e.dashes--;
         if (e.dashes > 0) { e.state = 'windup'; e.t = d.windup * 0.6; }
         else { e.state = 'rest'; e.t = hit ? 0.9 : 0.5; e.dizzy = hit; }
@@ -271,7 +273,7 @@ const AI = {
     let tx = p.x + p.vx * 0.35, ty = p.y + p.vy * 0.35;
     tx = clamp(tx, ROOM_X + e.r, ROOM_X + ROOM_W - e.r);
     ty = clamp(ty, ROOM_Y + e.r, ROOM_Y + ROOM_H - e.r);
-    if (blocksWalk(tileAt(tx, ty))) { tx = p.x; ty = p.y; }
+    if (blocksPath(tileAt(tx, ty))) { tx = p.x; ty = p.y; }
     e.jx0 = e.x; e.jy0 = e.y; e.jx1 = tx; e.jy1 = ty;
   },
 
@@ -381,6 +383,112 @@ const AI = {
     if (e.cd <= 0) { e.state = 'cast'; e.t = 0.6; }
   },
 
+  // Wind Spirit: vanishes, turns up next to you and blows you away
+  gust(e, dt, p) {
+    const g = e.def.gust;
+    e.t -= dt;
+    if (e.state === 'vanish') {
+      e.alpha = clamp(e.t / 0.35, 0, 1);
+      e.hidden = e.alpha < 0.4;
+      if (e.t <= 0) {
+        const spot = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 60, maxDist: 115, ground: false });
+        e.x = spot.x; e.y = spot.y;
+        e.state = 'appear'; e.t = 0.35;
+        Sound.play('blink');
+      }
+    } else if (e.state === 'appear') {
+      e.alpha = clamp(1 - e.t / 0.35, 0, 1);
+      e.hidden = e.alpha < 0.4;
+      if (e.t <= 0) {
+        e.state = 'charge'; e.t = 0.75; e.alpha = 1; e.hidden = false;
+        G.warns.push({ type: 'circle', x: e.x, y: e.y, r: g.radius, t: 0.75, max: 0.75, follow: e });
+      }
+    } else if (e.state === 'charge') {
+      e.look = angleTo(e.x, e.y, p.x, p.y);
+      if (e.t <= 0) {
+        const d = dist(e.x, e.y, p.x, p.y);
+        if (d < g.radius + p.r) {
+          const a = angleTo(e.x, e.y, p.x, p.y), k = 1 - d / (g.radius + p.r) * 0.5;
+          p.pushX = Math.cos(a) * g.push * k; p.pushY = Math.sin(a) * g.push * k;
+          hurtPlayer(Math.round(e.dmg * 0.6));
+        }
+        FX.ring(e.x, e.y, g.radius, '#ffffff', 0.35, 6);
+        Sound.play('dash');
+        e.state = 'idle'; e.t = g.every * rand(0.8, 1.2);
+      }
+    } else {
+      e.look = angleTo(e.x, e.y, p.x, p.y);
+      walk(e, e.look + Math.PI / 2 + Math.sin(G.time + e.seed), 30, dt);
+      if (e.t <= 0) { e.state = 'vanish'; e.t = 0.35; }
+    }
+  },
+
+  // Gargoyle: a statue (no damage, not aimed at) until you come close or it is the last one left
+  gargoyle(e, dt, p) {
+    if (e.statue) {
+      e.moving = false;
+      const others = G.enemies.some(o => o !== e && !o.dead && !o.statue && !o.def.harmless);
+      if (dist(e.x, e.y, p.x, p.y) < e.def.wake || !others) {
+        e.statue = false;
+        e.cd = 0.6;
+        FX.burst(e.x, e.y, ['#9a95a8', '#d6d2e0'], 14, { min: 40, max: 140 });
+        FX.text(e.x, e.y - e.r - 14, '!', '#ff5a5a', 16, { pop: 0.5 });
+        Sound.play('slam');
+      }
+      return;
+    }
+    AI.charger(e, dt, p);
+  },
+
+  // Storm Shaman: walks about and calls lightning onto marked circles round you
+  shaman(e, dt, p) {
+    const c = e.def.cast;
+    if (e.state === 'cast') {
+      e.t -= dt;
+      e.moving = false;
+      if (e.t <= 0) { e.state = 'move'; e.cd = c.every * rand(0.85, 1.15); }
+      return;
+    }
+    e.t -= dt;
+    if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
+      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230, fit: e.r });
+      e.t = rand(1.2, 2);
+    }
+    walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
+    e.look = angleTo(e.x, e.y, p.x, p.y);
+    e.cd -= dt;
+    if (e.cd <= 0) {
+      e.state = 'cast'; e.t = 0.6;
+      for (let i = 0; i < c.count; i++) {
+        const x = clamp(i === 0 ? p.x + p.vx * 0.5 : p.x + rand(-95, 95), ROOM_X + 10, ROOM_X + ROOM_W - 10);
+        const y = clamp(i === 0 ? p.y + p.vy * 0.5 : p.y + rand(-95, 95), ROOM_Y + 10, ROOM_Y + ROOM_H - 10);
+        const t = c.delay + i * 0.12;
+        G.strikes.push({ x, y, r: c.radius, t, max: t, dmg: e.dmg, owner: 'enemy', kind: 'bolt', quiet: i > 0 });
+      }
+      Sound.play('warn');
+    }
+  },
+
+  // Rock Tortoise: the shell turns slowly towards you and blocks shots from the front;
+  // now and then it opens up to throw rocks (and can be hit from every side)
+  tortoise(e, dt, p) {
+    const f = e.def.fire;
+    if (e.state === 'open') {
+      e.t -= dt;
+      e.moving = false;
+      if (!e.thrown && e.t < 0.8) {
+        e.thrown = true;
+        spreadShot(e, angleTo(e.x, e.y, p.x, p.y), f.shots, f.spread, f.shot, f.speed, 1, { ghost: true });
+      }
+      if (e.t <= 0) { e.state = 'walk'; e.shellOpen = false; e.cd = f.every * rand(0.85, 1.15); }
+      return;
+    }
+    walkTo(e, p.x, p.y, e.speed * e.slowK, dt);
+    e.look += clamp(angleDiff(e.look, angleTo(e.x, e.y, p.x, p.y)), -0.7 * dt, 0.7 * dt);
+    e.cd -= dt;
+    if (e.cd <= 0) { e.state = 'open'; e.shellOpen = true; e.t = 1.6; e.thrown = false; }
+  },
+
   // boss shield crystal: just sits there and glows
   crystal(e, dt, p) {
     e.look = angleTo(e.x, e.y, p.x, p.y);
@@ -456,14 +564,21 @@ function updateEnemy(e, dt, p) {
   if (e.boss) updateBoss(e, dt * e.haste, p);
   else AI[e.def.ai](e, dt * e.haste * (e.state === 'dash' || e.state === 'air' ? 1 : e.slowK === 1 ? 1 : 0.8), p);
   if (e.affList.length) updateAffixes(e, dt, p);
-  if (!e.flying && !e.boss) resolveTiles(e, true);
+  if (!e.flying && !e.boss) {
+    resolveTiles(e, true);
+    if (!e.anchored && !(e.z > 0)) {
+      const t = tileAt(e.x, e.y + 2);
+      if (windOf(t)) moveEntity(e, windOf(t) * 60 * dt, 0, true);
+      if (t === TILE.VOID) enemyFall(e);
+    }
+  }
 }
 
 // ---------- damage ----------
 
 function hurtEnemy(e, amount, o = {}) {
   if (e.dead || e.spawnT > 0) return;
-  if (e.decoy) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
+  if (e.decoy || e.statue) { FX.burst(e.x, e.y, [e.pal.light, '#ffffff'], 2, { min: 20, max: 60 }); return; }
   const p = G.player;
   let d = amount;
   if (e.status.curse > 0) d *= 1 + 0.2 * p.s.curse;
@@ -488,6 +603,10 @@ function shotHits(b, e) {
     return;
   }
   let d = b.dmg;
+  if (shellHit(b, e)) {
+    d *= 0.3;
+    FX.burst(b.x, b.y, ['#c9bfa9', '#ffffff'], 2, { type: 'spark', min: 40, max: 100 });
+  }
   const crit = Math.random() < s.crit;
   if (crit) d *= s.critMul;
   if (b.main && e.boss) d *= p.hero.vsBoss || 1;
@@ -549,6 +668,14 @@ function applyElements(e, b, d) {
     }
     if (near.length) Sound.play('zap');
   }
+}
+
+// Pushed (or walked) into a gap: gone, but the loot still counts.
+function enemyFall(e) {
+  FX.burst(e.x, e.y, [e.pal.main, '#ffffff', '#9ad0f7'], 12, { min: 30, max: 110 });
+  FX.text(e.x, e.y - e.r - 10, 'Fell!', '#9ad0f7', 11);
+  e.statue = false;
+  killEnemy(e);
 }
 
 function killEnemy(e) {

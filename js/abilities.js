@@ -42,7 +42,7 @@ const ABILITY_USE = {
     for (let d = 130; d >= 20; d -= 10) {
       const x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d;
       if (x < ROOM_X + p.r || x > ROOM_X + ROOM_W - p.r || y < ROOM_Y + p.r || y > ROOM_Y + ROOM_H - p.r) continue;
-      if (blocksWalk(tileAt(x, y))) continue;
+      if (blocksWalk(tileAt(x, y)) || tileAt(x, y + 4) === TILE.VOID) continue;
       p.x = x; p.y = y;
       break;
     }
@@ -53,6 +53,29 @@ const ABILITY_USE = {
     FX.burst(p.x, p.y, ['#c38eff', '#ffffff'], 14, { min: 40, max: 140 });
     G.abilityFx.push({ kind: 'nova', x: ox, y: oy, r: 70 + 4 * L, t: 0.35, max: 0.35, dmg: abilityPower(p) * (2.5 + 0.5 * L) });
     Sound.play('blink');
+  },
+
+  // Zephyr: a burst of wind blows enemies and their shots away (into a gap, with luck)
+  gust(p, L) {
+    const r = 120 + 6 * L, dmg = abilityPower(p) * (1.5 + 0.3 * L);
+    for (const e of G.enemies) {
+      if (!canTarget(e) || dist(e.x, e.y, p.x, p.y) > r + e.r) continue;
+      hurtEnemy(e, dmg, { color: '#bfefff' });
+      if (!e.boss && !e.anchored) {
+        const a = angleTo(p.x, p.y, e.x, e.y);
+        e.kbx = Math.cos(a) * 820; e.kby = Math.sin(a) * 820;
+      }
+    }
+    for (let i = G.eshots.length - 1; i >= 0; i--) {
+      const b = G.eshots[i];
+      if (dist2(p.x, p.y, b.x, b.y) > r * r) continue;
+      FX.burst(b.x, b.y, ['#bfefff', '#ffffff'], 2, { min: 30, max: 80 });
+      G.eshots.splice(i, 1);
+    }
+    FX.ring(p.x, p.y, r, '#bfefff', 0.45, 7);
+    FX.ring(p.x, p.y, r * 0.6, '#ffffff', 0.3, 4);
+    FX.kick(4);
+    Sound.play('dash');
   },
 
   // Pip: a turret that shoots the nearest enemy

@@ -89,6 +89,7 @@ const bossShot = (e, k = 0) => (e.def.altShot && k % 2 ? e.def.altShot : e.def.s
 
 function updateBoss(e, dt, p) {
   e.look = angleTo(e.x, e.y, p.x, p.y);
+  if (e.state !== 'move' || e.move !== 'gale') G.gale = G.galeDir = null;
   e.slowK = e.status.slow > 0 ? 0.8 : 1;
   if (e.shieldDue) { e.shieldDue = false; startShieldPhase(e); }
   if (e.shielded && e.crystals.every(c => c.dead)) breakShield(e);
@@ -389,6 +390,42 @@ const BOSS_MOVES = {
     return false;
   },
 
+  // Storm Roc: beats its wings so a strong wind pushes you one way for a few seconds
+  gale(e, dt, p, m) {
+    if (m.t === 0) {
+      const [dx, dy] = pick([[1, 0], [-1, 0], [0, 1]]);
+      m.dx = dx; m.dy = dy; m.k = 0.8;
+      Sound.play('warn');
+    }
+    e.anim = 'cast';
+    G.galeDir = { x: m.dx, y: m.dy };
+    G.gale = m.t > 0.6 ? { x: m.dx * 95, y: m.dy * 95 } : null;   // a moment to brace first
+    m.k -= dt;
+    if (m.t > 0.6 && m.k <= 0) {
+      m.k = 0.9;
+      spreadShot(e, angleTo(e.x, e.y, p.x, p.y), 5, 0.7, 'feather', 150, 0.8);
+    }
+    if (m.t > 4.1) { G.gale = G.galeDir = null; return true; }
+    return false;
+  },
+
+  // Storm Roc: three waves of lightning all over the room, one bolt always aimed at you
+  tempest(e, dt, p, m) {
+    if (m.t === 0) { m.waves = 0; m.next = 0; }
+    if (m.t >= m.next && m.waves < 3) {
+      for (let i = 0; i < 14; i++) {
+        const x = i === 0 ? p.x : rand(ROOM_X + 20, ROOM_X + ROOM_W - 20);
+        const y = i === 0 ? p.y : rand(ROOM_Y + 20, ROOM_Y + ROOM_H - 20);
+        const t = 1.0 + rand(0, 0.35);
+        G.strikes.push({ x, y, r: 30, t, max: t, dmg: e.dmg, owner: 'enemy', kind: 'bolt', quiet: i > 0 });
+      }
+      Sound.play('warn');
+      m.waves++;
+      m.next += 1.3;
+    }
+    return m.waves >= 3 && m.t > m.next;
+  },
+
   // Lich: splits into three; two are illusions that shoot but take no damage
   mirror(e, dt, p, m) {
     if (m.t === 0) {
@@ -411,6 +448,7 @@ const BOSS_MOVES = {
 };
 
 function bossDefeated(e) {
+  G.gale = G.galeDir = null;
   for (const o of G.enemies) {
     if (o !== e && !o.dead) {
       o.dead = true;
