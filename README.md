@@ -38,3 +38,20 @@ music are made with Web Audio (`js/audio.js`).
 Run it locally with any static web server (for example `npx serve .`) or just open
 `index.html`. Add `#dev` to the address for test keys (K kills enemies, B jumps to the boss,
 I makes you invincible, G gives gold and gems).
+
+## Tests
+
+Browser tests in `tests/` play the game in headless Chromium with Playwright: screen layout
+on phones and iPads, touch controls, menus, clearing a room, a boss beam, and perk values.
+The game itself still needs no build step; the tests are the only thing that uses npm.
+
+```
+npm install
+npx playwright install chromium
+npm test              # everything, about 30 seconds
+npm test -- touch     # only tests whose file or name contains "touch"
+```
+
+To add a test, put a `{ name, size, run(page) }` in one of the `*.test.js` files (or a new
+one); `tests/helpers.js` has helpers to start a run, read the hero's position and drag a
+finger. A test fails if it throws or the page logs an error.
