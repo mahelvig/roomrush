@@ -1630,6 +1630,21 @@ const ICONS = {
     drawHelper(c, { kind: 'guard', x: 11, y: 8 }, 0);
     circ(c, 0, 0, 5); fs(c, '#ff5a6e', 1.4);
   },
+  aim(c) {   // Steady Aim: a crosshair with an arrow planted in the middle
+    circ(c, 0, 0, 15); c.strokeStyle = OL; c.lineWidth = 6; c.stroke(); c.strokeStyle = '#7be05a'; c.lineWidth = 3; c.stroke();
+    for (const a of [0, 1, 2, 3]) {
+      const ang = a * Math.PI / 2;
+      oline(c, Math.cos(ang) * 15, Math.sin(ang) * 15, Math.cos(ang) * 21, Math.sin(ang) * 21, '#7be05a', 2.5);
+    }
+    iconArrow(c, -12, 12, 2, -2, '#f0dcb4', '#e6edf7');
+    circ(c, 0, 0, 3); fs(c, '#ffcf3f', 1.4);
+  },
+  focus(c) {   // Focus: a cooldown ring nearly full round a lightning bolt
+    circ(c, 0, 0, 16); fs(c, '#3a2f63', 2);
+    c.beginPath(); c.arc(0, 0, 16, -Math.PI / 2, Math.PI * 1.15);
+    c.strokeStyle = OL; c.lineWidth = 7; c.stroke(); c.strokeStyle = '#5ff2ff'; c.lineWidth = 3.5; c.stroke();
+    bolt(c, 0, 0, 11);
+  },
   run(c) {
     iconArrow(c, -4, 4, 18, -8);
     c.save(); c.translate(-8, 6); c.scale(0.55, 0.55); ICONS.boot(c); c.restore();

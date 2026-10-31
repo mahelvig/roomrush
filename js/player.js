@@ -160,7 +160,7 @@ const elementGlow = s =>
 
 function fireVolley(p, ang) {
   const s = p.s;
-  const dmg = playerAtk(p) * s.dmgMul;
+  const dmg = playerAtk(p) * s.dmgMul * (p.moving ? 1 : 1 + s.steady);   // Steady Aim
   const dirs = [];
   const n = 1 + s.front;
   if (s.lance) fireLance(p, ang, dmg * n * 1.1);
