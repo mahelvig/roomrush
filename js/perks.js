@@ -64,6 +64,10 @@ const PERKS = [
     desc: '2 orbs circle you and block enemy shots', mod: (s, L) => { s.guards += 2 * L; } },
   { id: 'agile', name: 'Agility', rarity: 'rare', max: 3, icon: 'dodge',
     desc: '12% chance to dodge a hit', mod: (s, L) => { s.dodge += 0.12 * L; } },
+  { id: 'steady', name: 'Steady Aim', rarity: 'rare', max: 2, icon: 'aim',
+    desc: 'Damage +20% while you stand still', mod: (s, L) => { s.steady += 0.2 * L; } },
+  { id: 'focus', name: 'Focus', rarity: 'rare', max: 2, icon: 'focus',
+    desc: 'Your ability recharges 20% faster', mod: (s, L) => { s.abilityCd *= Math.pow(0.8, L); } },
 
   // ---- epic ----
   { id: 'chain', name: 'Chain Lightning', rarity: 'epic', max: 3, icon: 'lightning',
@@ -80,8 +84,8 @@ const PERKS = [
     desc: 'Bigger shots. Damage +30% and knockback', mod: (s, L) => { s.size += 0.45 * L; s.atkPct += 0.3 * L; s.knock += L; } },
   { id: 'rage', name: 'Berserker', rarity: 'epic', max: 2, icon: 'rage',
     desc: 'Up to +60% damage when your HP is low', mod: (s, L) => { s.rage += 0.6 * L; } },
-  { id: 'headshot', name: 'Headshot', rarity: 'epic', max: 2, icon: 'skull',
-    desc: '3% chance to defeat a normal enemy in one hit', mod: (s, L) => { s.headshot += 0.03 * L; } },
+  { id: 'headshot', name: 'Headshot', rarity: 'epic', max: 3, icon: 'skull',
+    desc: '5% chance to defeat a normal enemy in one hit', mod: (s, L) => { s.headshot += 0.05 * L; } },
   { id: 'rungun', name: 'Run & Gun', rarity: 'epic', max: 1, icon: 'run',
     desc: 'Shoot at full speed while moving', mod: (s, L) => { if (L) s.moveRate = 1; } },
 
@@ -120,7 +124,7 @@ function baseStats(hero) {
     front: 0, multishot: 0, diag: 0, side: 0, rear: 0, pierce: 0, wallBounce: 0, ricochet: 0,
     burn: 0, poison: 0, frost: 0, lightning: 0, curse: 0,
     vamp: 0, shield: 0, wisps: 0, blades: 0, guards: 0, dragons: 0, drones: hero.drone || 0,
-    meteor: 0, storm: 0, size: 1, knock: 0, rage: 0, headshot: 0,
+    meteor: 0, storm: 0, size: 1, knock: 0, rage: 0, headshot: 0, steady: 0,
     lives: 0, gold: upgradeLevel('greed') * 0.1 + masteryLevel('greed') * 0.03, roomHeal: upgradeLevel('recover') * 0.03,
     bulletSlow: 1, homing: hero.homing || 0,
     abilityCd: 1, coreBreak: 0, shieldPierce: 0, firstHit: 0, threeCards: 0, glass: 0,
@@ -157,9 +161,10 @@ function rollPerks(p, n, minRank = 0) {
     available.splice(available.indexOf(perk), 1);
   }
   // fill up from anything that is left if a rarity ran dry
+  const open = k => !out.includes(k) && (p.perks[k.id] || 0) < k.max && (!k.when || k.when(p));
   while (out.length < n) {
-    let rest = PERKS.filter(k => !out.includes(k) && (p.perks[k.id] || 0) < k.max && RARITY[k.rarity].rank >= minRank);
-    if (!rest.length) rest = PERKS.filter(k => !out.includes(k) && (p.perks[k.id] || 0) < k.max);
+    let rest = PERKS.filter(k => open(k) && RARITY[k.rarity].rank >= minRank);
+    if (!rest.length) rest = PERKS.filter(open);
     if (!rest.length) break;
     out.push(pick(rest));
   }
