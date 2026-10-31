@@ -795,7 +795,10 @@ function goFullscreen() {
   if (window.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) return;
   d.requestFullscreen({ navigationUI: 'hide' })
     .then(() => {
-      try { screen.orientation.lock('portrait').catch(() => {}); } catch (e) { /* not supported */ }
+      // phones stay portrait; tablets may be turned either way
+      if (Math.min(screen.width, screen.height) < 600) {
+        try { screen.orientation.lock('portrait').catch(() => {}); } catch (e) { /* not supported */ }
+      }
     })
     .catch(() => {});
 }

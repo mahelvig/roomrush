@@ -8,6 +8,8 @@ const ROOM_X = 15, ROOM_Y = 66;   // top-left corner of the room interior
 const ROOM_W = COLS * T;
 const WORLD_W = 360;
 let ROWS = BASE_ROWS, ROOM_H = ROWS * T, WORLD_H = ROOM_Y + ROOM_H + 34;
+// Logical screen height we want visible at least (a normal room plus HUD, a little scrolling is fine).
+const FIT_H = 700;
 const DOOR_X = WORLD_W / 2, DOOR_W = 56;
 const ROOMS_PER_WORLD = 20;
 
