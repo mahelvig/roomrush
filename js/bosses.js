@@ -314,12 +314,8 @@ const BOSS_MOVES = {
     if (e.phase2) m.ang += clamp(angleDiff(m.ang, angleTo(e.x, e.y, p.x, p.y)), -0.9 * dt, 0.9 * dt);
     const len = rayLength(e.x, e.y, m.ang);
     e.laser = { ang: m.ang, len, on: true };
-    // distance from player to the beam
     const dx = Math.cos(m.ang), dy = Math.sin(m.ang);
-    const px = p.x - e.x, py = p.y - e.y;
-    const along = clamp(px * dx + py * dy, 0, len);
-    const off = Math.hypot(px - dx * along, py - dy * along);
-    if (off < 11 + p.r) hurtPlayer(e.dmg * 1.1);
+    if (beamOff(e.x, e.y, m.ang, len, p.x, p.y) < 11 + p.r) hurtPlayer(e.dmg * 1.1);
     if (Math.random() < dt * 30) {
       FX.burst(e.x + dx * len, e.y + dy * len, [e.pal.light, '#ffffff'], 2, { min: 40, max: 120 });
     }
@@ -388,9 +384,7 @@ const BOSS_MOVES = {
     });
     if (on) {
       for (const L of e.lasers) {
-        const dx = Math.cos(L.ang), dy = Math.sin(L.ang);
-        const along = clamp((p.x - e.x) * dx + (p.y - e.y) * dy, 0, L.len);
-        if (Math.hypot(p.x - e.x - dx * along, p.y - e.y - dy * along) < 12 + p.r) hurtPlayer(e.dmg);
+        if (beamOff(e.x, e.y, L.ang, L.len, p.x, p.y) < 12 + p.r) hurtPlayer(e.dmg);
       }
     }
     if (m.t >= warnT + fireT) { e.lasers = null; return true; }

@@ -74,6 +74,16 @@ function walkTo(e, tx, ty, speed, dt) {
   }
   return walk(e, ang, speed, dt);
 }
+// Walk between random open spots at a distance from the player, always facing them.
+function wander(e, dt, p) {
+  e.t -= dt;
+  if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
+    e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230, fit: e.r });
+    e.t = rand(1.2, 2);
+  }
+  walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
+  e.look = angleTo(e.x, e.y, p.x, p.y);
+}
 
 // ---------- behaviours ----------
 
@@ -374,13 +384,7 @@ const AI = {
       }
       return;
     }
-    e.t -= dt;
-    if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
-      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230, fit: e.r });
-      e.t = rand(1.2, 2);
-    }
-    walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
-    e.look = angleTo(e.x, e.y, p.x, p.y);
+    wander(e, dt, p);
     e.cd -= dt;
     if (e.cd <= 0) { e.state = 'cast'; e.t = 0.6; }
   },
@@ -451,13 +455,7 @@ const AI = {
       if (e.t <= 0) { e.state = 'move'; e.cd = c.every * rand(0.85, 1.15); }
       return;
     }
-    e.t -= dt;
-    if (!e.dest || e.t <= 0 || dist(e.x, e.y, e.dest.x, e.dest.y) < 8) {
-      e.dest = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 120, maxDist: 230, fit: e.r });
-      e.t = rand(1.2, 2);
-    }
-    walkTo(e, e.dest.x, e.dest.y, e.speed * e.slowK, dt);
-    e.look = angleTo(e.x, e.y, p.x, p.y);
+    wander(e, dt, p);
     e.cd -= dt;
     if (e.cd <= 0) {
       e.state = 'cast'; e.t = 0.6;

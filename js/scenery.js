@@ -262,13 +262,18 @@ function spikeBase(g, c, r) {
   }
 }
 
-function drawFrame(g, world, R) {
-  const th = world.theme;
-  g.fillStyle = th.wall;
+// Fill everything round the room interior with the current fillStyle.
+function fillBorder(g) {
   g.fillRect(0, 0, WORLD_W, ROOM_Y);
   g.fillRect(0, 0, ROOM_X, WORLD_H);
   g.fillRect(ROOM_X + ROOM_W, 0, WORLD_W - ROOM_X - ROOM_W, WORLD_H);
   g.fillRect(0, ROOM_Y + ROOM_H, WORLD_W, WORLD_H - ROOM_Y - ROOM_H);
+}
+
+function drawFrame(g, world, R) {
+  const th = world.theme;
+  g.fillStyle = th.wall;
+  fillBorder(g);
 
   if (world.id === 'woods') {
     // hedges with round bushes along the room edge
@@ -321,10 +326,7 @@ function drawFrame(g, world, R) {
     sky.addColorStop(0, th.skyDeep);
     sky.addColorStop(1, th.sky);
     g.fillStyle = sky;
-    g.fillRect(0, 0, WORLD_W, ROOM_Y);
-    g.fillRect(0, 0, ROOM_X, WORLD_H);
-    g.fillRect(ROOM_X + ROOM_W, 0, WORLD_W - ROOM_X - ROOM_W, WORLD_H);
-    g.fillRect(0, ROOM_Y + ROOM_H, WORLD_W, WORLD_H - ROOM_Y - ROOM_H);
+    fillBorder(g);
     for (let i = 0; i < 9; i++) {
       const cx = R() * WORLD_W, cy = R() * ROOM_Y * 0.8;
       for (const [dx, dy, rr] of [[-10, 2, 9], [0, -3, 12], [12, 2, 9]]) { g.beginPath(); g.arc(cx + dx, cy + dy, rr, 0, TAU); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fill(); }
