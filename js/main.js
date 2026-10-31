@@ -13,9 +13,10 @@ function resize() {
   const landscapePhone = isTouch && W > H && H < 600;
   document.body.classList.toggle('rotate', landscapePhone);
   if (landscapePhone && G.state === 'play') pauseGame();
-  // phones: use the whole screen; wide screens (iPad): a portrait column in the middle,
-  // never so wide that a normal room no longer fits the height of the screen
-  const maxW = Math.round(H * VIEW_W / FIT_H);
+  // phones: use the whole screen; wide screens: a portrait column in the middle.
+  // On tablets the column is never so wide that a normal room no longer fits the height.
+  const tablet = Math.min(W, H) >= 600;
+  const maxW = Math.round(H * (tablet ? VIEW_W / FIT_H : 0.62));
   cssW = Math.min(W, maxW);
   cssH = H;
   app.style.width = cssW + 'px';
@@ -30,8 +31,8 @@ function resize() {
   G.viewH = cssH / G.scale;
   app.style.setProperty('--u', (cssW / VIEW_W).toFixed(4));
   app.style.fontSize = Math.min(28, (cssW / VIEW_W) * 16) + 'px';
-  // bigger screens get a bigger joystick (CSS pixels)
-  Input.R = Math.round(54 * clamp(G.scale / 1.08, 1, 1.6));
+  // tablets get a bigger joystick (CSS pixels); phones keep 54
+  Input.R = tablet ? Math.round(54 * clamp(G.scale / 1.08, 1, 1.6)) : 54;
   const hud = document.querySelector('.hud-top');
   G.hudH = hud ? (hud.getBoundingClientRect().bottom + 6) / G.scale : 56;
   if (G.run && room.bg) rebuildRoomBG();
