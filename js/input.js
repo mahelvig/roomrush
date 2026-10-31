@@ -15,15 +15,18 @@ const Input = {
       const r = el.getBoundingClientRect();
       return [e.clientX - r.left, e.clientY - r.top];
     };
-    el.addEventListener('pointerdown', e => {
+    // listen on the whole window: a thumb on the empty sides (wide screens) steers too
+    const pad = document.getElementById('pad');
+    window.addEventListener('pointerdown', e => {
+      if (e.target !== el && e.target !== pad) return;
       Sound.init();
       if (this.stick.active || !this.enabled()) return;
       const [x, y] = pos(e);
       Object.assign(this.stick, { active: true, id: e.pointerId, ox: x, oy: y, x, y });
-      try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      try { e.target.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       e.preventDefault();
     });
-    el.addEventListener('pointermove', e => {
+    window.addEventListener('pointermove', e => {
       const s = this.stick;
       if (!s.active || e.pointerId !== s.id) return;
       const [x, y] = pos(e);
@@ -39,9 +42,9 @@ const Input = {
     const end = e => {
       if (e.pointerId === this.stick.id) this.release();
     };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
-    el.addEventListener('lostpointercapture', end);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('lostpointercapture', end);
 
     window.addEventListener('keydown', e => {
       this.keys.add(e.code);

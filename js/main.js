@@ -13,11 +13,12 @@ function resize() {
   const landscapePhone = isTouch && W > H && H < 600;
   document.body.classList.toggle('rotate', landscapePhone);
   if (landscapePhone && G.state === 'play') pauseGame();
-  // phones: use the whole screen; wide screens: a portrait column in the middle.
-  // On tablets the column is never so wide that a normal room no longer fits the height.
+  // Portrait (phones and tablets): always the full width, the room scrolls with you.
+  // Landscape: a portrait column in the middle; on tablets never so wide that a normal
+  // room no longer fits the height. Touches on the sides still steer (Input).
   const tablet = Math.min(W, H) >= 600;
   const maxW = Math.round(H * (tablet ? VIEW_W / FIT_H : 0.62));
-  cssW = Math.min(W, maxW);
+  cssW = W <= H ? W : Math.min(W, maxW);
   cssH = H;
   app.style.width = cssW + 'px';
   app.style.left = Math.round((W - cssW) / 2) + 'px';
