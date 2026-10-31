@@ -796,7 +796,7 @@ function goFullscreen() {
   d.requestFullscreen({ navigationUI: 'hide' })
     .then(() => {
       // phones stay portrait; tablets may be turned either way
-      if (Math.min(screen.width, screen.height) < 600) {
+      if (!isTablet()) {
         try { screen.orientation.lock('portrait').catch(() => {}); } catch (e) { /* not supported */ }
       }
     })

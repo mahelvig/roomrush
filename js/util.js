@@ -109,4 +109,13 @@ function roman(n) {
   return out;
 }
 
+// Distance from a point (px, py) to a beam from (x, y) at angle ang, from..len long.
+function beamOff(x, y, ang, len, px, py, from = 0) {
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  const along = clamp((px - x) * dx + (py - y) * dy, from, len);
+  return Math.hypot(px - x - dx * along, py - y - dy * along);
+}
+
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+// A tablet (iPad) rather than a phone: the short side of the screen is at least 600 CSS px.
+const isTablet = () => Math.min(window.innerWidth, window.innerHeight) >= 600;

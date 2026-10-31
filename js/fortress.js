@@ -342,12 +342,6 @@ function beamLength(x, y, ang, max) {
   }
   return max;
 }
-// Distance from a point to a beam from (x, y).
-function beamOff(x, y, ang, len, px, py, from = 0) {
-  const dx = Math.cos(ang), dy = Math.sin(ang);
-  const along = clamp((px - x) * dx + (py - y) * dy, from, len);
-  return Math.hypot(px - x - dx * along, py - y - dy * along);
-}
 function beamHits(tw, ang, len, p) {
   if (!p.dead && beamOff(tw.x, tw.y, ang, len, p.x, p.y, 18) < 8 + p.r) hurtPlayer(Math.round(tw.dmg * 1.2));
   const g = G.golem;
