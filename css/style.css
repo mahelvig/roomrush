@@ -39,6 +39,13 @@ html, body {
   font-size: 16px;
 }
 
+/* the whole screen behind the game: a touch on the empty sides also steers */
+#pad {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}
+
 #cv {
   position: absolute;
   inset: 0;

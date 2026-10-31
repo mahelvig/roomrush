@@ -958,7 +958,9 @@ function drawJoystick(ctx) {
   const s = Input.stick;
   if (!s.active || G.state !== 'play') return;
   const k = 1 / G.scale;
-  const ox = s.ox * k, oy = s.oy * k, R = Input.R * k;
+  const R = Input.R * k;
+  // a thumb on the empty side of a wide screen: draw the stick at the game's edge
+  const ox = clamp(s.ox * k, R, VIEW_W - R), oy = s.oy * k;
   let dx = (s.x - s.ox) * k, dy = (s.y - s.oy) * k;
   const d = Math.hypot(dx, dy);
   if (d > R) { dx *= R / d; dy *= R / d; }
