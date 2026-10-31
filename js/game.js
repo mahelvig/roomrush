@@ -720,16 +720,25 @@ function drawGame(ctx) {
   }
   if (!p.dead) drawShadow(ctx, p.x, p.y + 9, 9);
 
-  // focus ring: standing still makes you shoot faster
-  if (!p.dead && !p.moving && p.target && p.s.moveRate < 1 && G.state === 'play') {
+  // focus ring: standing still makes you shoot faster (yellow), and with Steady Aim
+  // also hit harder (green, with a second ring that pulses)
+  const steady = p.s.steady > 0;
+  if (!p.dead && !p.moving && p.target && (p.s.moveRate < 1 || steady) && G.state === 'play') {
     const k = clamp(p.stillT * 5, 0, 1);
+    const rgb = steady ? '123,224,90' : '255,214,90';
     ctx.save();
     ctx.translate(p.x, p.y + 6);
     ctx.scale(1, 0.4);
+    if (steady) {
+      ctx.beginPath(); ctx.arc(0, 0, 21 + Math.sin(t * 6) * 1.5, 0, TAU);
+      ctx.strokeStyle = `rgba(${rgb},${0.45 * k})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     ctx.rotate(t * 2);
     ctx.setLineDash([5, 5]);
     ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU);
-    ctx.strokeStyle = `rgba(255,214,90,${0.7 * k})`;
+    ctx.strokeStyle = `rgba(${rgb},${0.7 * k})`;
     ctx.lineWidth = 2.5;
     ctx.stroke();
     ctx.setLineDash([]);
