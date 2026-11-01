@@ -44,6 +44,38 @@ module.exports = [
     },
   },
   {
+    name: "Brick's bombs curve after fast enemies but never turn sharply in the air",
+    size: SIZES.phone,
+    async run(page) {
+      await page.evaluate(() => { RR.save().hero = 'sapper'; if (!RR.save().heroes.includes('sapper')) RR.save().heroes.push('sapper'); });
+      await startRun(page, 3);   // Skyward Ruins: harpies dive about fast
+      const r = await page.evaluate(() => new Promise(done => {
+        const G = RR.G, p = G.player, last = new Map();
+        p.perks = { multishot: 2, front: 2 }; refreshStats(p);
+        // a room full of harpies, which dive at the hero fast
+        const harpies = () => { for (let i = 0; i < 4; i++) { const e = spawnEnemy('harpy', ROOM_X + 40 + i * 80, ROOM_Y + 120); e.spawnT = 0; } };
+        harpies();
+        let bombs = 0, worst = 0, n = 0;
+        const iv = setInterval(() => {
+          p.invuln = 99999;
+          if (G.state === 'perk') RR.choosePerk(0);
+          if (G.enemies.filter(e => !e.dead).length < 3) harpies();
+          for (const b of G.shots) if (b.lob) {
+            const prev = last.get(b);
+            if (!prev) bombs++;
+            const moved = prev ? Math.hypot(b.x - prev.x, b.y - prev.y) : 0;
+            const dir = prev && moved > 0.5 ? Math.atan2(b.y - prev.y, b.x - prev.x) : prev && prev.dir;
+            if (prev && prev.dir != null && moved > 0.5) worst = Math.max(worst, Math.abs(angleDiff(prev.dir, dir)));
+            last.set(b, { x: b.x, y: b.y, dir });
+          }
+          if (++n > 600) { clearInterval(iv); done({ bombs, worst }); }
+        }, 16);
+      }));
+      assert.ok(r.bombs > 10, `only ${r.bombs} bombs thrown`);
+      assert.ok(r.worst < 0.35, `a bomb turned ${r.worst.toFixed(2)} rad in one frame`);
+    },
+  },
+  {
     name: 'Storm Shaman and Ice Mage walk about',
     size: SIZES.phone,
     async run(page) {

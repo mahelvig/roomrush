@@ -221,18 +221,29 @@ function throwBomb(p, x0, y0, x1, y1, dmg, o = {}) {
   });
 }
 
+const BOMB_TURN = 3;   // how fast an aimed bomb can curve after its target (radians a second)
+
 // Moves a bomb along its arc; true once it has gone off.
 function updateBomb(b, dt) {
   const L = b.lob;
+  const left = L.dur - L.t;   // flight time left before this step
   L.t += dt;
-  if (b.follow && canTarget(b.follow)) {
-    const k = Math.min(1, dt * 10);
-    L.x1 += (b.follow.x - L.x1) * k;
-    L.y1 += (b.follow.y - L.y1) * k;
-  }
   const k = Math.min(1, L.t / L.dur);
-  b.x = lerp(L.x0, L.x1, k);
-  b.y = lerp(L.y0, L.y1, k);
+  // The aimed bomb follows its target for most of the flight, but it may only curve, never
+  // turn sharply or back: a fast enemy diving past it just leaves it to land near where it was going.
+  if (b.follow && canTarget(b.follow) && k < 0.8) {
+    const f = Math.min(1, dt * 10);
+    const nx = L.x1 + (b.follow.x - L.x1) * f, ny = L.y1 + (b.follow.y - L.y1) * f;
+    const a0 = Math.atan2(L.y1 - b.y, L.x1 - b.x), a1 = Math.atan2(ny - b.y, nx - b.x);
+    const turn = clamp(angleDiff(a0, a1), -BOMB_TURN * dt, BOMB_TURN * dt);
+    const d = Math.hypot(nx - b.x, ny - b.y);
+    L.x1 = b.x + Math.cos(a0 + turn) * d;
+    L.y1 = b.y + Math.sin(a0 + turn) * d;
+  }
+  // step towards the landing spot so that it is reached exactly when the flight ends
+  const step = left > dt ? dt / left : 1;
+  b.x += (L.x1 - b.x) * step;
+  b.y += (L.y1 - b.y) * step;
   b.z = Math.sin(k * Math.PI) * L.h;
   if (k < 1) return false;
   bombBlast(b);
