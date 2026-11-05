@@ -588,6 +588,9 @@ header h2 { flex: 1; font-size: 1.7em; }
 .card b { font-family: var(--title); font-weight: normal; font-size: 1.2em; line-height: 1.05; }
 .card p { margin: 0; font-size: .84em; color: var(--muted); line-height: 1.25; }
 .card .lv { margin-top: auto; font-size: .82em; color: #ffcf3f; }
+.card .lv i { font-style: normal; color: var(--muted); }
+.card .up { margin-top: auto; font-size: .78em; color: #1b1430; background: #7be05a; padding: .05em .55em; border-radius: 1em; }
+.card .up + .lv { margin-top: 0; }
 .card:active { transform: scale(.96); }
 .card.r-epic { background: linear-gradient(#4f3488, #2c1f58); }
 .card.r-legendary {

@@ -3,7 +3,7 @@
 // Relics change how you play. You collect them and wear two in a run (three once Frozen Crypt is
 // cleared on Hell). They drop from elites and bosses from Hard up, from the Iron Citadel's chests and
 // at the milestones of The Depths; a duplicate raises a relic's level, up to RELIC_MAX.
-// Evolutions: with both perks of a recipe maxed in a run, the next perk choice offers to merge them
+// Evolutions: with both perks of a recipe at the level the recipe needs (evoLevel) in a run, the next perk choice offers to merge them
 // into one stronger perk. Recipes drop the same way relics do.
 
 const RELIC_MAX = 5;
@@ -132,9 +132,9 @@ function collectRelic(k, p) {
 
 // ---------- in the run ----------
 
-// Recipes found whose two perks are both maxed in this run, and not merged yet.
+// Recipes found whose two perks are both at the level the recipe needs in this run, and not merged yet.
 function readyEvolutions(p) {
-  return EVOLUTIONS.filter(ev => save.recipes[ev.id] && !p.perks[ev.id] && ev.from.every(id => (p.perks[id] || 0) >= PERK_BY_ID[id].max));
+  return EVOLUTIONS.filter(ev => save.recipes[ev.id] && !p.perks[ev.id] && ev.from.every(id => (p.perks[id] || 0) >= evoLevel(PERK_BY_ID[id])));
 }
 
 // Still Water's bubble and Ember Boots' footprints.

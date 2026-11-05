@@ -10,7 +10,8 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
   that run on power cores, and the boss is an escort.
 - The Depths: endless worlds, each harder than the last.
 - Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
-  play. Max both perks of a found recipe in a run and they merge into an evolution.
+  play. Level up both perks of a found recipe in a run and they merge into an evolution.
+- Perks level up several times; the top levels of many add a new effect (marked on the card).
 - Your weapon fires on its own at the nearest enemy. You shoot faster while standing still.
 - After every room you pick one of two perks: extra shots, fire, poison, frost, lightning,
   curses, companions, shields and more. Rarer perks are stronger.
