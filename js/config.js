@@ -243,6 +243,11 @@ const SHOTS = {
 // Enemy definitions. hp/dmg are for room 1 of a world with multiplier 1.
 // ai picks the behaviour in enemies.js, art picks the drawing in art.js.
 const ENEMIES = {
+  // --- anywhere: the Hoarder, a rare treasure thief that runs away (loot.js) ---
+  hoarder: {
+    name: 'Hoarder', art: 'hoarder', ai: 'hoarder', hp: 300, dmg: 0, speed: 100, r: 12, cost: 0, coins: 0, harmless: true,
+    pal: { main: '#8fbf6a', dark: '#5a8a3c', light: '#ffcf3f' },
+  },
   // --- Whispering Woods ---
   slime: {
     name: 'Slime', art: 'slime', ai: 'hopper', hp: 70, dmg: 55, speed: 0, r: 12, cost: 1, coins: 2,

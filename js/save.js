@@ -8,6 +8,8 @@ function defaultSave() {
   return {
     gold: 0,
     gems: 0,
+    dust: 0,               // Relic Dust and Star Shards: materials that upgrade relics (loot.js)
+    shards: 0,
     upgrades: {},
     heroes: ['ranger'],
     hero: 'ranger',
