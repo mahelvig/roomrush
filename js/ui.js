@@ -278,11 +278,11 @@ const UI = {
             <canvas class="icon" data-icon="${found ? ev.icon : 'gift'}"></canvas>
             <div class="u-info">
               <b>${found ? ev.name : 'Unknown recipe'}</b>
-              <span>${found ? `<em>${ev.from.map(id => PERK_BY_ID[id].name).join(' + ')}</em> · ${ev.desc}` : 'Still to be found'}</span>
+              <span>${found ? `<em>${ev.from.map(id => `${PERK_BY_ID[id].name} ${evoLevel(PERK_BY_ID[id])}`).join(' + ')}</em> · ${ev.desc}` : 'Still to be found'}</span>
             </div>
           </div>`;
       }).join('');
-      body += '<p class="sub">Recipes drop where relics do. Max both perks of a recipe in one run, and the next perk choice lets you merge them.</p>';
+      body += '<p class="sub">Recipes drop where relics do. Get both perks of a recipe to the level shown in one run, and the next perk choice lets you merge them.</p>';
     } else {
       const worn = save.worn;
       const n = relicSlots();
@@ -543,14 +543,15 @@ const UI = {
       const L = p.perks[k.id] || 0;
       const R = RARITY[k.rarity];
       const lv = k.evo ? `<span class="lv">${k.from.map(id => PERK_BY_ID[id].name).join(' + ')}</span>`
-        : k.max > 1 && k.max < 99 ? `<span class="lv">${L ? `Lv ${L} → ${L + 1}` : 'New'}</span>` : L ? '' : '<span class="lv">New</span>';
+        : k.max > 1 && k.max < 99 ? `<span class="lv">${L ? `Lv ${L} → ${L + 1}` : 'New'} <i>of ${k.max}</i></span>` : L ? '' : '<span class="lv">New</span>';
+      const up = !k.evo && perkUpgrade(k, L + 1) ? '<span class="up">New effect!</span>' : '';
       return `
         <button class="card r-${k.rarity}" data-a="pick" data-i="${i}" style="--rc:${R.color};animation-delay:${i * 0.08}s">
           <span class="rar">${R.name}</span>
           <canvas class="icon" data-icon="${k.icon}"></canvas>
           <b>${k.name}</b>
           <p>${perkDesc(k, L + 1)}</p>
-          ${lv}
+          ${up}${lv}
         </button>`;
     }).join('');
     const owned = Object.keys(p.perks).filter(id => id !== 'patch' && PERK_BY_ID[id]);
@@ -581,7 +582,7 @@ const UI = {
         <h3>Your perks</h3>
         ${owned.length ? `<div class="perk-list">${owned.map(id => {
           const k = PERK_BY_ID[id];
-          return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${p.perks[id] > 1 ? ` ×${p.perks[id]}` : ''}</b>${perkDesc(k, p.perks[id])}</span></div>`;
+          return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${k.max > 1 && k.max < 99 ? ` · ${p.perks[id]}/${k.max}` : ''}</b>${perkDesc(k, p.perks[id])}</span></div>`;
         }).join('')}</div>` : '<p class="sub">No perks yet. Clear a room to get one.</p>'}
         ${(p.relics || []).length ? `<h3>Your relics</h3><div class="perk-list">${p.relics.map(({ id, L }) => {
           const r = RELIC_BY_ID[id];

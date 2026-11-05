@@ -7,7 +7,7 @@ function createPlayer(hero, perks, relics) {
     x: DOOR_X, y: ROOM_Y + ROOM_H - 36, r: 10, vx: 0, vy: 0,
     aim: -Math.PI / 2, walk: 0, moving: false, stillT: 0, t: 0,
     cd: 0.4, volleys: [], recoil: 0, invuln: 0, flash: 0,
-    shieldUp: false, shieldBurst: false, slowT: 0, hazardT: 0,
+    shieldUp: false, shieldBurst: false, shieldT: 0, slowT: 0, hazardT: 0,
     target: null, targetT: 0, meteorT: 3, stormT: 2, livesUsed: 0, dead: false, abilityCd: 0,
   };
   p.s = computeStats(p);
@@ -103,6 +103,12 @@ function updatePlayer(p, dt) {
   p.slowT = Math.max(0, p.slowT - dt);
   p.recoil = Math.max(0, p.recoil - dt * 6);
   if (p.shieldBurst) { p.shieldBurst = false; shieldBurst(p); }
+  // Holy Shield level 4 grows back in the middle of a room too
+  if (p.s.shield >= 4 && !p.shieldUp && !G.cleared && (p.shieldT -= dt) <= 0) {
+    p.shieldUp = true;
+    FX.ring(p.x, p.y, 26, '#ffe58a', 0.5, 4);
+    FX.text(p.x, p.y - 44, 'Shield back!', '#ffe58a', 11, { life: 1.2 });
+  }
 
   // floor hazards
   const tile = tileAt(p.x, p.y + 3);
@@ -160,7 +166,7 @@ const elementGlow = s =>
 
 function fireVolley(p, ang) {
   const s = p.s;
-  const dmg = playerAtk(p) * s.dmgMul * (p.moving ? 1 : 1 + s.steady);   // Steady Aim
+  const dmg = playerAtk(p) * s.dmgMul * (p.moving ? 1 + s.moveDmg : 1 + s.steady);   // Run & Gun, Steady Aim
   const dirs = [];
   const n = 1 + s.front;
   if (s.lance) fireLance(p, ang, dmg * n * 1.1);
@@ -285,7 +291,7 @@ function updateSkyAttacks(p, dt) {
   if (s.meteor) {
     p.meteorT -= dt;
     if (p.meteorT <= 0) {
-      p.meteorT = 6 - s.meteor * 1.2;
+      p.meteorT = Math.max(1.5, 6 - s.meteor * 1.2);
       const targets = skyTargets(p);
       if (targets.length) {
         const e = pick(targets);
@@ -296,7 +302,7 @@ function updateSkyAttacks(p, dt) {
   if (s.storm) {
     p.stormT -= dt;
     if (p.stormT <= 0) {
-      p.stormT = 3.2 - s.storm * 0.6;
+      p.stormT = Math.max(1.2, 3.2 - s.storm * 0.6);
       const targets = shuffle(skyTargets(p)).slice(0, s.storm + 1);
       for (const e of targets) {
         FX.bolt(e.x + rand(-30, 30), e.y - 220, e.x, e.y, '#ffe55a', 2.5);
@@ -322,6 +328,7 @@ function hurtPlayer(amount, o = {}) {
   if (p.shieldUp) {
     p.shieldUp = false;
     p.shieldBurst = true;   // handled in updatePlayer, we may be in the middle of a loop over shots or enemies
+    p.shieldT = SHIELD_REGROW;
     p.invuln = 0.5;
     FX.ring(p.x, p.y, 30, '#ffe58a', 0.4, 5);
     FX.burst(p.x, p.y, ['#ffe58a', '#ffffff'], 10, { min: 60, max: 140 });
@@ -346,7 +353,8 @@ function hurtPlayer(amount, o = {}) {
 }
 
 // What a broken Holy Shield does: level 2 wipes out nearby shots, level 3 also blasts enemies away.
-const SHIELD_BURST_R = 120;
+// Level 4 grows back SHIELD_REGROW seconds after it breaks.
+const SHIELD_BURST_R = 120, SHIELD_REGROW = 12;
 function shieldBurst(p) {
   const L = p.s.shield;
   if (L < 2) return;
