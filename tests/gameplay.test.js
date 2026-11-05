@@ -90,4 +90,25 @@ module.exports = [
       for (const d of moved) assert.ok(d > 20, `moved only ${d | 0} px`);
     },
   },
+  {
+    name: 'drops follow how hard a world and tier really are, so the easy world is no farm',
+    size: SIZES.phone,
+    async run(page) {
+      await startRun(page);
+      const r = await page.evaluate(() => {
+        const G = RR.G, at = (id, tier) => {
+          G.world = WORLDS.find(w => w.id === id); G.tier = tier;
+          return { level: lootLevel(), boss: relicChance('boss'), elite: relicChance('elite') };
+        };
+        return { woodsHell: at('woods', 3), cryptHard: at('crypt', 1), citadelHard: at('citadel', 1),
+          woodsHard: at('woods', 1), cryptNormal: at('crypt', 0) };
+      });
+      const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.05, `${msg}: ${a} vs ${b}`);
+      near(r.woodsHell.level, r.cryptHard.level, 'Woods on Hell is as hard as Crypt on Hard');
+      near(r.woodsHell.elite, r.cryptHard.elite, 'so their elites drop relics as often');
+      assert.ok(r.citadelHard.boss > r.woodsHell.boss, 'Iron Citadel on Hard should beat Woods on Hell');
+      assert.ok(r.citadelHard.elite > r.woodsHard.elite, 'a harder world on the same tier drops more');
+      assert.equal(r.cryptNormal.boss, 0, 'still no relics on Normal');
+    },
+  },
 ];
