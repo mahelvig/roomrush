@@ -13,6 +13,20 @@ const coinTag = n => `<span class="amt"><i class="coin-ico"></i>${fmt(n)}</span>
 const pickedTier = w => clamp(save.tierPick[w.id] ?? tierUnlocked(w), 0, tierUnlocked(w));
 const mult = v => (v < 10 ? v.toFixed(1).replace('.0', '') : fmt(v));
 const gemTag = n => `<span class="amt"><i class="gem-ico"></i>${fmt(n)}</span>`;
+const dustTag = n => `<span class="amt"><i class="dust-ico"></i>${fmt(n)}</span>`;
+const shardTag = n => `<span class="amt"><i class="shard-ico"></i>${fmt(n)}</span>`;
+// Everything found in a run, for the results screen: materials, then relics and recipes.
+function lootSummary(sum) {
+  const chips = [];
+  if (sum.dust) chips.push(`<span class="loot-chip" style="--rc:${MATERIALS.dust.color}">${dustTag(sum.dust)} Relic Dust</span>`);
+  if (sum.shards) chips.push(`<span class="loot-chip" style="--rc:${MATERIALS.shard.color}">${shardTag(sum.shards)} Star Shard${sum.shards > 1 ? 's' : ''}</span>`);
+  for (const l of sum.loot) {
+    const k = l.kind === 'relic' ? RELIC_BY_ID[l.id] : PERK_BY_ID[l.id];
+    const R = RARITY[k.rarity];
+    chips.push(`<span class="loot-chip" style="--rc:${R.color}"><canvas class="icon" data-icon="${k.icon}"></canvas>${l.kind === 'recipe' ? 'Recipe: ' : ''}${k.name}${l.kind === 'relic' && l.L > 1 ? ` · Lv ${l.L}` : ''}</span>`);
+  }
+  return chips.length ? `<div class="loot-found"><h3>Loot</h3><div class="loot-list">${chips.join('')}</div></div>` : '';
+}
 
 const UI = {
   root: null, previews: [], quitArmed: 0, resetArmed: 0, armedAt: 0,
@@ -295,7 +309,7 @@ const UI = {
         <div class="relic-slots panel"><b>Worn</b><div class="slots">${slots}</div>
           <span>${n < 3 ? 'A third slot opens when you clear Frozen Crypt on Hell' : 'Tap a relic to wear it or take it off'}</span></div>` +
         RELICS.map(r => {
-          const L = relicLevel(r.id), on = worn.includes(r.id), R = RARITY[r.rarity];
+          const L = relicLevel(r.id), on = worn.includes(r.id), R = RARITY[r.rarity], cost = relicUpgradeCost(r.id);
           if (!L) {
             return `
               <div class="upg panel dim">
@@ -310,13 +324,16 @@ const UI = {
                 <b>${r.name} ${pips(L)}</b>
                 <span><i class="rar-tag" style="color:${R.color}">${R.name}</i> · level ${L}${L < RELIC_MAX ? '' : ' (max)'} · ${r.desc(L)}</span>
               </div>
-              <button class="btn small ${on ? 'blue' : 'green'}" data-a="wearRelic" data-id="${r.id}">${on ? 'Take off' : 'Wear'}</button>
+              <div class="btns">
+                <button class="btn small ${on ? 'blue' : 'green'}" data-a="wearRelic" data-id="${r.id}">${on ? 'Take off' : 'Wear'}</button>
+                ${cost ? `<button class="btn small purple up-relic" data-a="upgradeRelic" data-id="${r.id}" ${canUpgradeRelic(r.id) ? '' : 'disabled'}><small>Level up</small><span>${dustTag(cost.dust)}${cost.shards ? shardTag(cost.shards) : ''}</span></button>` : ''}
+              </div>
             </div>`;
         }).join('') +
-        '<p class="sub">Relics drop from elites and bosses on Hard and up, from chests in the Iron Citadel and at the milestones of The Depths. A relic you already have goes up a level.</p>';
+        '<p class="sub">Relics drop from elites and bosses on Hard and up, from chests in the Iron Citadel and at the milestones of The Depths. A relic you already have goes up a level, and Relic Dust and Star Shards from monsters level them up too.</p>';
     }
     this.open(`
-      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Relics</h2></header>
+      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Relics</h2><div class="pill">${dustTag(save.dust)}</div><div class="pill">${shardTag(save.shards)}</div></header>
       ${tabs}
       <div class="list">${body}</div>
     `, 'relics');
@@ -610,7 +627,8 @@ const UI = {
           <span><b>${sum.kills}</b>Kills</span>
           <span><b>${fmtTime(sum.time)}</b>Time</span>
         </div>
-        <p class="sub">Gold and gems are yours to keep. Spend them on upgrades!</p>
+        ${lootSummary(sum)}
+        <p class="sub">Gold, gems and loot are yours to keep. Spend them on upgrades!</p>
         <button class="btn big green" data-a="again">Try again</button>
         <div class="row">
           <button class="btn purple" data-a="upgrades">Upgrades</button>
@@ -632,6 +650,7 @@ const UI = {
           <span><b>${sum.kills}</b>Kills</span>
           <span><b>${fmtTime(sum.time)}</b>Time</span>
         </div>
+        ${lootSummary(sum)}
         ${sum.unlocked ? `<p class="unlock">New world unlocked: <b>${sum.unlocked.name}</b></p>` : ''}
         ${sum.nextTier ? `<p class="unlock">New difficulty unlocked: <b>${sum.nextTier}</b></p>` : ''}
         ${sum.unlocked ? `<button class="btn big green" data-a="start" data-w="${WORLDS.indexOf(sum.unlocked)}" data-t="0">Enter ${sum.unlocked.short}</button>`
@@ -679,6 +698,12 @@ const ACTIONS = {
   upgradeTab: d => UI.upgrades(d.tab),
   quests: () => UI.quests(),
   relics: d => UI.relics(d.tab),
+  upgradeRelic: d => {
+    if (!upgradeRelic(d.id)) return;
+    Sound.play('perk');
+    const y = UI.root.scrollTop; UI.relics('relics'); UI.root.scrollTop = y;
+    UI.toast(`${RELIC_BY_ID[d.id].name} is now level ${relicLevel(d.id)}!`);
+  },
   wearRelic: d => { toggleRelic(d.id); const y = UI.root.scrollTop; UI.relics('relics'); UI.root.scrollTop = y; },
   questTab: d => UI.quests(d.tab),
   claimQuest: d => { claimQuest(d.w === '1', +d.i); Sound.play('coin'); UI.quests(); },

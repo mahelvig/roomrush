@@ -150,6 +150,16 @@ h2, h3 {
   margin-right: .3em;
   flex: none;
 }
+.dust-ico, .shard-ico {
+  display: inline-block;
+  width: .95em;
+  height: .95em;
+  border: .1em solid var(--line);
+  margin-right: .3em;
+  flex: none;
+}
+.dust-ico { border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff 0 12%, #e6d8ff 18%, #a07cf0 70%); }
+.shard-ico { clip-path: polygon(50% 0, 85% 40%, 65% 100%, 35% 100%, 15% 40%); border: none; background: linear-gradient(160deg, #fff6c2, #ffcf3f 50%, #d99a1a); }
 .gem-ico {
   display: inline-block;
   width: .82em;
@@ -651,6 +661,20 @@ header h2 { flex: 1; font-size: 1.7em; }
 .upg .pips i { width: .5em; height: .5em; border-radius: 50%; background: rgba(255, 255, 255, .18); border: .1em solid var(--line); }
 .upg .pips i.on { background: #ffcf3f; }
 .upg .rar-tag { font-style: normal; }
+.upg .btns { display: flex; flex-direction: column; gap: .3em; flex: none; align-items: stretch; }
+.upg .up-relic { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.upg .up-relic small { font-size: .7em; opacity: .85; }
+.upg .up-relic .amt + .amt { margin-left: .35em; }
+.loot-found h3 { font-size: 1.1em; text-align: left; margin-bottom: .3em; }
+.loot-list { display: flex; flex-wrap: wrap; gap: .35em; max-height: 22vh; overflow-y: auto; }
+.loot-chip {
+  --rc: #a9b6cc;
+  display: inline-flex; align-items: center; gap: .3em;
+  font-size: .8em; padding: .25em .6em .25em .35em;
+  border-radius: 1em; background: rgba(0, 0, 0, .3);
+  border: .14em solid var(--rc); color: var(--rc);
+}
+.loot-chip .icon { width: 1.6em; height: 1.6em; }
 .upg .icon.unknown { display: flex; align-items: center; justify-content: center; font-family: var(--title); font-size: 1.6em; color: var(--muted); border-radius: .6em; background: rgba(0, 0, 0, .3); }
 .r-epic.mini, .pl.r-epic { border-color: #b86bff; }
 .r-legendary.mini, .pl.r-legendary { border-color: #ffb321; }

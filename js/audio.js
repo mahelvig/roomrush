@@ -65,7 +65,7 @@ const Sound = {
 
   play(name) {
     if (!this.ctx || !save.settings.sfx) return;
-    const gap = { shoot: 0.06, hit: 0.035, die: 0.04, coin: 0.05, eshoot: 0.07, zap: 0.08, burn: 0.15, boom: 0.06, toss: 0.05, cannon: 0.1 }[name] || 0.02;
+    const gap = { shoot: 0.06, hit: 0.035, die: 0.04, coin: 0.05, dust: 0.05, eshoot: 0.07, zap: 0.08, burn: 0.15, boom: 0.06, toss: 0.05, cannon: 0.1 }[name] || 0.02;
     const now = this.ctx.currentTime;
     if (this.last[name] && now - this.last[name] < gap) return;
     this.last[name] = now;
@@ -167,6 +167,17 @@ const SFX = {
   victory: s => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => s.tone('triangle', f, f, 0.3, 0.09, i * 0.11)),
   lose: s => [392, 349, 311, 262].forEach((f, i) => s.tone('triangle', f, f * 0.98, 0.35, 0.08, i * 0.16)),
   blink: s => s.tone('sine', 300, 1200, 0.15, 0.04),
+  // loot falling, by rarity (loot.js): a chime that gets brighter and longer
+  dust: s => s.tone('sine', 2100, 2600, 0.07, 0.03),
+  loot1: s => [880, 1175].forEach((f, i) => s.tone('triangle', f, f, 0.18, 0.07, i * 0.06)),
+  loot2: s => [784, 1047, 1319].forEach((f, i) => s.tone('triangle', f, f, 0.22, 0.08, i * 0.06)),
+  loot3: s => { [659, 988, 1319, 1760].forEach((f, i) => s.tone('triangle', f, f, 0.3, 0.08, i * 0.07)); s.hiss(0.5, 0.05, 'highpass', 4000, 8000); },
+  loot4: s => {
+    s.tone('sine', 196, 196, 0.9, 0.12);
+    [523, 784, 1047, 1319, 1568, 2093].forEach((f, i) => s.tone('triangle', f, f, 0.4, 0.08, 0.05 + i * 0.08));
+    s.hiss(0.9, 0.06, 'highpass', 3000, 9000, 0.05);
+  },
+  hoarder: s => { [1568, 1319, 1568, 1760].forEach((f, i) => s.tone('square', f, f, 0.08, 0.035, i * 0.07)); s.hiss(0.3, 0.05, 'highpass', 5000, 9000); },
   toss: s => s.hiss(0.09, 0.05, 'bandpass', 900, 400, 0, 1.5),
   boom: s => { s.hiss(0.22, 0.12, 'lowpass', 1400, 90); s.tone('sine', 150, 50, 0.18, 0.12); },
   cannon: s => { s.tone('sine', 95, 38, 0.3, 0.25); s.hiss(0.25, 0.12, 'lowpass', 700, 120); },

@@ -741,6 +741,8 @@ function killEnemy(e) {
     } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
     if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
     if ((e.elite || e.boss) && !e.noGems) maybeDropRelic(e.boss ? 'boss' : 'elite', e.x, e.y);
+    if (e.def.ai === 'hoarder') hoarderLoot(e);
+    else if (!e.def.harmless) dropMaterials(e);
   }
 
   if (s.vamp) healPlayer(p.s.maxHp * s.vamp);
@@ -775,7 +777,9 @@ function dropCoins(x, y, total) {
 
 function dropPickup(kind, x, y, value) {
   const a = rand(0, TAU), sp = rand(40, 130);
-  G.pickups.push({ kind, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, value, t: 0, seed: rand(0, 10), speed: 0 });
+  const k = { kind, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, value, t: 0, seed: rand(0, 10), speed: 0 };
+  G.pickups.push(k);
+  lootDropped(k);
 }
 
 // Keep enemies from stacking on top of each other.

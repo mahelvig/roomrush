@@ -87,6 +87,7 @@ function beginRoom() {
   G.perkShown = false;
   G.roomT = 0;
   spawnRoomEnemies();
+  planHoarder();
   const w = G.world;
   if (G.roomType === 'boss') {
     const name = BOSSES[w.boss].name + (w.bossAffix ? ` · ${AFFIXES[w.bossAffix].name}` : '');
@@ -263,12 +264,14 @@ function endRun(won) {
   const run = G.run;
   save.gold += run.gold;
   save.gems += run.gems;
+  save.dust += run.dust || 0;
+  save.shards += run.shard || 0;
   if (!won) save.stats.deaths++;
   clearRun();
   writeSave();
   return {
     world: G.world, tier: G.tier, depth: G.world.depth || 0, room: G.roomIdx, gold: run.gold, gems: run.gems, kills: run.kills || 0,
-    time: run.time, perks: Object.assign({}, G.player.perks), hero: G.player.hero,
+    dust: run.dust || 0, shards: run.shard || 0, loot: run.loot || [], time: run.time, perks: Object.assign({}, G.player.perks), hero: G.player.hero,
   };
 }
 
@@ -357,6 +360,7 @@ function updateGame(dt) {
   updateAbilities(dt, p);
   if (worldMod('meteors') && !G.cleared && !G.bossDead) updateMeteorRain(dt, p);
   updateHelpers(p, dt);
+  updateHoarderPlan(dt, p);
   for (const e of G.enemies) updateEnemy(e, dt, p);
   separateEnemies();
   contactDamage(p);
@@ -639,6 +643,7 @@ function updatePickups(dt, p) {
         Sound.play('gem');
         FX.text(p.x, p.y - 34, `+${k.value} gem${k.value > 1 ? 's' : ''}`, '#5ff2ff', 11);
       } else if (k.kind === 'relic' || k.kind === 'recipe') collectRelic(k, p);
+      else if (MATERIALS[k.kind]) collectMaterial(k, p);
     }
   }
 }
@@ -703,12 +708,15 @@ function drawGame(ctx) {
   if (G.boss && G.boss.shielded) drawShieldTethers(ctx, G.boss, t);
   FX.drawBelow(ctx);
 
+  for (const k of G.pickups) drawLootBeam(ctx, k, t);
   for (const k of G.pickups) {
     drawShadow(ctx, k.x, k.y + 5, 4, 0.18);
     const hop = Math.abs(Math.sin(k.t * 5 + k.seed)) * 2;
     if (k.kind === 'coin') drawCoin(ctx, k.x, k.y - hop, k.t, k.seed);
     else if (k.kind === 'heart') drawHeart(ctx, k.x, k.y - hop, 6);
     else if (k.kind === 'relic' || k.kind === 'recipe') drawRelicPickup(ctx, k, k.y - hop, t);
+    else if (k.kind === 'dust') drawDust(ctx, k.x, k.y - hop, k.t, k.seed);
+    else if (k.kind === 'shard') drawShard(ctx, k.x, k.y - hop, t);
     else drawGem(ctx, k.x, k.y - hop, 6);
   }
 
@@ -803,6 +811,7 @@ function drawGame(ctx) {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(Math.ceil(p.hp), p.x, p.y - 35);
   }
+  for (const k of G.pickups) drawLootLabel(ctx, k, k.y);   // names over rare loot, above everything else
   FX.drawTexts(ctx);
   ctx.restore();
 }

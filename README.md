@@ -11,6 +11,9 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
 - The Depths: endless worlds, each harder than the last.
 - Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
   play. Level up both perks of a found recipe in a run and they merge into an evolution.
+- Loot: every monster can drop Relic Dust, elites and bosses Star Shards, and both level up
+  your relics. Rare loot falls with a beam of light and its name, and the end of a run lists
+  everything you found. Now and then a Hoarder turns up: catch it before it runs off with its sack.
 - Perks level up several times; the top levels of many add a new effect (marked on the card).
 - Your weapon fires on its own at the nearest enemy. You shoot faster while standing still.
 - After every room you pick one of two perks: extra shots, fire, poison, frost, lightning,
@@ -30,6 +33,7 @@ music are made with Web Audio (`js/audio.js`).
 | `js/config.js` | Heroes, worlds, enemies, bosses, permanent upgrades |
 | `js/perks.js` | All perks and how they change your stats |
 | `js/relics.js` | Relics, their drops and effects, and perk evolutions |
+| `js/loot.js` | Materials, upgrading relics with them, the Hoarder, how loot looks and sounds |
 | `js/game.js` | Rooms, shots, pickups, camera, drawing the game |
 | `js/enemies.js`, `js/bosses.js` | Enemy behaviour and boss attacks |
 | `js/fortress.js` | The Iron Citadel: fortress rooms, towers, cores, the escort boss |

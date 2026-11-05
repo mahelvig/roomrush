@@ -97,6 +97,7 @@ function relicChance(src) {
   const t = G.tier, L = lootLevel(), deep = !!G.world.depth;
   if (src === 'milestone') return 1;
   if (src === 'chest') return Math.min(0.08, 0.03 + 0.01 * t);
+  if (src === 'hoarder') return deep ? 0.3 : t < 1 ? 0 : Math.min(0.9, 0.35 + 0.08 * L);
   if (deep) return src === 'boss' ? 0.15 : 0.04;
   if (t < 1) return 0;
   return src === 'boss' ? Math.min(1, 0.4 + 0.15 * L) : Math.min(0.25, 0.06 + 0.03 * L);
@@ -119,12 +120,14 @@ function collectRelic(k, p) {
   let text, color;
   if (k.kind === 'recipe') {
     save.recipes[k.value] = true;
+    noteLoot('recipe', k.value, 1);
     const ev = PERK_BY_ID[k.value];
     text = `Recipe found: ${ev.name}!`;
     color = RARITY.evolution.color;
   } else {
     const r = RELIC_BY_ID[k.value], L = Math.min(RELIC_MAX, relicLevel(r.id) + 1);
     save.relics[r.id] = L;
+    noteLoot('relic', r.id, L);
     if (L === 1 && save.worn.length < relicSlots()) save.worn.push(r.id);
     text = L === 1 ? `Relic found: ${r.name}!` : `${r.name} is now level ${L}!`;
     color = RARITY[r.rarity].color;
