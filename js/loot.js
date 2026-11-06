@@ -41,7 +41,7 @@ function dropDust(x, y, total) {
 
 // How rare a pickup is (for its beam, label and sound), or null for coins, hearts and dust.
 function lootRarity(k) {
-  if (k.kind === 'relic') return RELIC_BY_ID[k.value].rarity;
+  if (k.kind === 'relic') return RELIC_BY_ID[k.value.id].rarity;
   if (k.kind === 'recipe') return 'evolution';
   if (k.kind === 'shard') return 'legendary';
   if (k.kind === 'gem') return 'rare';
@@ -49,7 +49,7 @@ function lootRarity(k) {
 }
 // The name shown over a pickup on the floor.
 function lootLabel(k) {
-  if (k.kind === 'relic') return RELIC_BY_ID[k.value].name;
+  if (k.kind === 'relic') return RELIC_BY_ID[k.value.id].name;
   if (k.kind === 'recipe') return `Recipe: ${PERK_BY_ID[k.value].name}`;
   if (k.kind === 'shard') return k.value > 1 ? `${k.value} Star Shards` : 'Star Shard';
   return null;
@@ -80,31 +80,8 @@ function collectMaterial(k, p) {
 }
 
 // Relics and recipes found in this run, for the list at the end.
-function noteLoot(kind, id, L) {
-  (G.run.loot = G.run.loot || []).push({ kind, id, L });
-}
-
-// ---------- upgrading relics with materials ----------
-
-const RELIC_DUST = { common: 25, rare: 40, epic: 60, legendary: 90 };
-// What the next level of a relic costs, or null when it is not found yet or maxed.
-function relicUpgradeCost(id) {
-  const L = relicLevel(id);
-  if (!L || L >= RELIC_MAX) return null;
-  return { dust: RELIC_DUST[RELIC_BY_ID[id].rarity] * L, shards: L - 1 };
-}
-const canUpgradeRelic = id => {
-  const c = relicUpgradeCost(id);
-  return !!c && save.dust >= c.dust && save.shards >= c.shards;
-};
-function upgradeRelic(id) {
-  if (!canUpgradeRelic(id)) return false;
-  const c = relicUpgradeCost(id);
-  save.dust -= c.dust;
-  save.shards -= c.shards;
-  save.relics[id]++;
-  writeSave();
-  return true;
+function noteLoot(kind, it) {
+  (G.run.loot = G.run.loot || []).push({ kind, id: it.id, L: it.L, aff: it.aff });
 }
 
 // ---------- the Hoarder ----------

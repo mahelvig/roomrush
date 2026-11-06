@@ -154,7 +154,10 @@ function baseStats(hero) {
 function computeStats(p) {
   const s = baseStats(p.hero);
   for (const id in p.perks) if (PERK_BY_ID[id]) PERK_BY_ID[id].mod(s, p.perks[id]);
-  for (const r of p.relics || []) if (RELIC_BY_ID[r.id] && RELIC_BY_ID[r.id].mod) RELIC_BY_ID[r.id].mod(s, r.L);
+  for (const r of p.relics || []) {
+    if (RELIC_BY_ID[r.id] && RELIC_BY_ID[r.id].mod) RELIC_BY_ID[r.id].mod(s, r.L);
+    applyRelicAffixes(s, r);
+  }
   s.maxHp = Math.round(s.maxHp * (1 + s.hpPct) * (s.glass ? 0.5 : 1));
   s.dodge = Math.min(0.5, s.dodge);
   s.crit = Math.min(1, s.crit);

@@ -2,7 +2,8 @@
 // Relics and perk evolutions: the loot of the harder tiers, instead of gear.
 // Relics change how you play. You collect them and wear two in a run (three once Frozen Crypt is
 // cleared on Hell). They drop from elites and bosses from Hard up, from the Iron Citadel's chests and
-// at the milestones of The Depths; a duplicate raises a relic's level, up to RELIC_MAX.
+// at the milestones of The Depths. Every relic that drops is a copy of its own with random affixes,
+// levelled up to RELIC_MAX with materials (items.js).
 // Evolutions: with both perks of a recipe at the level the recipe needs (evoLevel) in a run, the next perk choice offers to merge them
 // into one stronger perk. Recipes drop the same way relics do.
 
@@ -55,21 +56,7 @@ for (const ev of EVOLUTIONS) {
 
 // ---------- the collection ----------
 
-const relicLevel = id => save.relics[id] || 0;
-const relicSlots = () => ((save.tiers.crypt ?? -1) >= 3 ? 3 : 2);
-// What a run starts with: the relics worn, at the level they have now.
-const wornRelics = () => save.worn.filter(id => relicLevel(id) > 0).slice(0, relicSlots()).map(id => ({ id, L: relicLevel(id) }));
-const runRelic = (p, id) => { const r = p.relics && p.relics.find(x => x.id === id); return r ? r.L : 0; };
-
-function toggleRelic(id) {
-  const i = save.worn.indexOf(id);
-  if (i >= 0) save.worn.splice(i, 1);
-  else if (relicLevel(id) > 0) {
-    if (save.worn.length >= relicSlots()) save.worn.shift();   // the oldest one comes off
-    save.worn.push(id);
-  }
-  writeSave();
-}
+// (the bag, wearing and levelling relics: items.js)
 
 // ---------- drops ----------
 
@@ -77,8 +64,7 @@ function toggleRelic(id) {
 function rollRelic(tier) {
   const t = Math.min(tier, 10);
   const boost = { common: 1, rare: 1 + 0.15 * t, epic: 1 + 0.3 * t, legendary: 1 + 0.5 * t };
-  const open = RELICS.filter(r => relicLevel(r.id) < RELIC_MAX);
-  if (!open.length) return null;
+  const open = RELICS;
   const rars = Object.keys(boost).filter(r => open.some(x => x.rarity === r));
   const rar = weightedPick(rars, r => RARITY[r].weight * boost[r]);
   return pick(open.filter(x => x.rarity === rar));
@@ -111,8 +97,9 @@ function maybeDropRelic(src, x, y) {
     dropPickup('recipe', x, y, pick(locked).id);
     return;
   }
-  const r = rollRelic(G.world.depth ? Math.floor(G.world.depth / 2) : lootLevel());
-  if (r) dropPickup('relic', x, y, r.id);
+  // the item level: how strong its affixes roll (The Depths count a little less than they say)
+  const ilvl = G.world.depth ? G.world.depth / 2 : lootLevel();
+  dropPickup('relic', x, y, makeItem(rollRelic(ilvl).id, ilvl));
 }
 
 // Picked up: it goes into the collection at once, so it is kept even if the run is lost.
@@ -120,17 +107,13 @@ function collectRelic(k, p) {
   let text, color;
   if (k.kind === 'recipe') {
     save.recipes[k.value] = true;
-    noteLoot('recipe', k.value, 1);
+    noteLoot('recipe', { id: k.value });
     const ev = PERK_BY_ID[k.value];
     text = `Recipe found: ${ev.name}!`;
     color = RARITY.evolution.color;
   } else {
-    const r = RELIC_BY_ID[k.value], L = Math.min(RELIC_MAX, relicLevel(r.id) + 1);
-    save.relics[r.id] = L;
-    noteLoot('relic', r.id, L);
-    if (L === 1 && save.worn.length < relicSlots()) save.worn.push(r.id);
-    text = L === 1 ? `Relic found: ${r.name}!` : `${r.name} is now level ${L}!`;
-    color = RARITY[r.rarity].color;
+    text = collectRelicItem(k.value);
+    color = RARITY[RELIC_BY_ID[k.value.id].rarity].color;
   }
   writeSave();
   track('relic');

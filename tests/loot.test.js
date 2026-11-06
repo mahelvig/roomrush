@@ -50,18 +50,21 @@ module.exports = [
     name: 'Relic Dust and Star Shards level up a relic in the relic screen',
     size: SIZES.phone,
     async run(page) {
-      await page.evaluate(() => {
-        save.relics = { thornring: 2, stormtotem: 5 }; save.worn = ['thornring'];
+      const ids = await page.evaluate(() => {
+        save.items = []; save.relics = {}; save.worn = [];
+        const ring = addItem(makeItem('thornring', 2, 2)), totem = addItem(makeItem('stormtotem', 2, 5));
+        save.worn = [ring.uid];
         save.dust = 0; save.shards = 0; RR.UI.relics('relics');
+        return { ring: ring.uid, totem: totem.uid };
       });
-      const btn = '[data-a="upgradeRelic"][data-id="thornring"]';
+      const btn = `[data-a="upgradeRelic"][data-id="${ids.ring}"]`;
       assert.ok(await page.$eval(btn, b => b.disabled), 'should be disabled without materials');
-      assert.equal(await page.$('[data-a="upgradeRelic"][data-id="stormtotem"]'), null, 'a maxed relic has no upgrade');
-      const cost = await page.evaluate(() => relicUpgradeCost('thornring'));
+      assert.equal(await page.$(`[data-a="upgradeRelic"][data-id="${ids.totem}"]`), null, 'a maxed relic has no upgrade');
+      const cost = await page.evaluate(uid => relicUpgradeCost(itemByUid(uid)), ids.ring);
       assert.deepEqual(cost, { dust: 50, shards: 1 });
       await page.evaluate(() => { save.dust = 60; save.shards = 2; RR.UI.relics('relics'); });
       await page.click(btn);
-      const after = await page.evaluate(() => ({ L: relicLevel('thornring'), dust: save.dust, shards: save.shards }));
+      const after = await page.evaluate(uid => ({ L: itemByUid(uid).L, dust: save.dust, shards: save.shards }), ids.ring);
       assert.deepEqual(after, { L: 3, dust: 10, shards: 1 });
       // fits the screen with the extra button
       const outside = await page.evaluate(() => {
@@ -140,7 +143,7 @@ module.exports = [
       const r = await page.evaluate(COLLECT => {
         const G = RR.G, p = G.player;
         p.invuln = 99999;
-        dropPickup('relic', p.x + 80, p.y - 80, 'glassheart');
+        dropPickup('relic', p.x + 80, p.y - 80, makeItem('glassheart', 1));
         dropPickup('shard', p.x + 80, p.y - 80, 2);
         const labels = G.pickups.map(lootLabel).filter(Boolean);
         const rarities = G.pickups.map(lootRarity);
