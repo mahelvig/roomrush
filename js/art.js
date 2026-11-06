@@ -1901,7 +1901,7 @@ function evoRing(c) {
 
 // A relic or a recipe lying on the floor: its icon in a glow of its rarity.
 function drawRelicPickup(ctx, k, y, t) {
-  const r = k.kind === 'relic' ? RELIC_BY_ID[k.value] : PERK_BY_ID[k.value];
+  const r = k.kind === 'relic' ? RELIC_BY_ID[k.value.id] : PERK_BY_ID[k.value];
   const color = RARITY[r.rarity].color;
   glow(ctx, k.x, y, 26 + Math.sin(t * 5) * 3, color, 0.8);
   ctx.save();

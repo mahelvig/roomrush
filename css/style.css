@@ -655,6 +655,16 @@ header h2 { flex: 1; font-size: 1.7em; }
 .slot { width: 3.4em; height: 3.4em; border-radius: .8em; background: rgba(0, 0, 0, .35); border: .16em solid #a9b6cc; padding: .2em; }
 .slot .icon { width: 100%; height: 100%; display: block; }
 .slot.empty { border-style: dashed; opacity: .55; }
+.slot { position: relative; }
+.slot em { position: absolute; right: -.35em; bottom: -.35em; font-style: normal; font-size: .75em; background: #ffcf3f; color: #1b1430; border-radius: 1em; padding: 0 .35em; border: .1em solid var(--line); }
+.upg.item { align-items: flex-start; }
+.upg .affixes { display: flex; flex-wrap: wrap; gap: .15em .6em; margin-top: .15em; }
+.upg .affixes i, .pl .affixes { font-style: normal; color: #7be05a; font-size: .95em; }
+.pl .affixes { display: block; }
+.upg .better { color: #ffcf3f; font-size: .85em; }
+.bag-head { display: flex; flex-wrap: wrap; align-items: center; gap: .4em; padding: .2em .1em; }
+.bag-head b { font-family: var(--title); font-weight: normal; font-size: 1.15em; flex: 1; }
+.loot-chip small { opacity: .8; }
 .slot.r-rare { border-color: #47a6ff; } .slot.r-epic { border-color: #b86bff; } .slot.r-legendary { border-color: #ffb321; }
 .upg.relic.worn { box-shadow: 0 .3em 0 var(--line), inset 0 0 0 .15em #4fd6c8; }
 .upg .pips { display: inline-flex; gap: .2em; vertical-align: middle; margin-left: .25em; }

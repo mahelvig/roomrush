@@ -24,8 +24,11 @@ function defaultSave() {
     depthBest: 0,          // deepest depth reached in The Depths
     depthCleared: 0,       // deepest depth cleared (for the gem bonus every fifth depth)
     depthPick: 0,          // depth picked on the world screen (0 = the deepest start)
-    relics: {},            // relic id -> level (relics.js)
-    worn: [],              // relic ids worn in the next run
+    relics: {},            // relic id -> true: every kind of relic ever found (the codex)
+    items: [],             // the bag: relics found, each { uid, id, L, ilvl, aff } (items.js)
+    nextUid: 0,
+    itemsVersion: 1,       // 0 / missing: an old save with one level per relic, see migrateRelics
+    worn: [],              // uids of the relics worn in the next run
     recipes: {},           // evolution id -> found
     seenAbilityHint: false,
     seenFortHint: false,   // the Iron Citadel's first room and its escort boss explain themselves once
