@@ -219,15 +219,16 @@ function throwVolley(p, ang, dirs, dmg, glowC) {
 }
 
 function throwBomb(p, x0, y0, x1, y1, dmg, o = {}) {
-  const d = dist(x0, y0, x1, y1);
+  const d = dist(x0, y0, x1, y1), dur = clamp(d / 380, 0.28, 0.75);
   G.shots.push({
     x: x0, y: y0, vx: 0, vy: 0, z: 0, r: 4, size: p.s.size, dmg, kind: 'bomb', glow: o.glow, blast: true, main: true,
-    lob: { x0, y0, x1, y1, t: 0, dur: clamp(d / 380, 0.28, 0.75), h: 14 + d * 0.12 },
+    lob: { x0, y0, x1, y1, t: 0, dur, h: 14 + d * 0.12, v: d / dur },
     follow: o.follow || null, pierce: p.s.pierce, bounce: o.bounce ?? p.s.wallBounce, ric: o.ric ?? p.s.ricochet, hit: o.hit ? o.hit.slice() : [], life: 3,
   });
 }
 
 const BOMB_TURN = 3;   // how fast an aimed bomb can curve after its target (radians a second)
+const BOMB_MIN_SPEED = 0.6;   // and it keeps at least this much of the speed it was thrown with
 
 // Moves a bomb along its arc; true once it has gone off.
 function updateBomb(b, dt) {
@@ -237,12 +238,14 @@ function updateBomb(b, dt) {
   const k = Math.min(1, L.t / L.dur);
   // The aimed bomb follows its target for most of the flight, but it may only curve, never
   // turn sharply or back: a fast enemy diving past it just leaves it to land near where it was going.
+  // It also never slows down much: a target coming right under it would otherwise stop it in the
+  // air, and a bomb that hardly moves can swing round on the spot.
   if (b.follow && canTarget(b.follow) && k < 0.8) {
     const f = Math.min(1, dt * 10);
     const nx = L.x1 + (b.follow.x - L.x1) * f, ny = L.y1 + (b.follow.y - L.y1) * f;
     const a0 = Math.atan2(L.y1 - b.y, L.x1 - b.x), a1 = Math.atan2(ny - b.y, nx - b.x);
     const turn = clamp(angleDiff(a0, a1), -BOMB_TURN * dt, BOMB_TURN * dt);
-    const d = Math.hypot(nx - b.x, ny - b.y);
+    const d = Math.max(Math.hypot(nx - b.x, ny - b.y), L.v * BOMB_MIN_SPEED * left);
     L.x1 = b.x + Math.cos(a0 + turn) * d;
     L.y1 = b.y + Math.sin(a0 + turn) * d;
   }

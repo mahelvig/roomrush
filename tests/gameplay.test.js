@@ -64,8 +64,10 @@ module.exports = [
             const prev = last.get(b);
             if (!prev) bombs++;
             const moved = prev ? Math.hypot(b.x - prev.x, b.y - prev.y) : 0;
-            const dir = prev && moved > 0.5 ? Math.atan2(b.y - prev.y, b.x - prev.x) : prev && prev.dir;
-            if (prev && prev.dir != null && moved > 0.5) worst = Math.max(worst, Math.abs(angleDiff(prev.dir, dir)));
+            // (a bomb thrown at something right next to the hero hardly moves sideways: its direction
+            // can't be seen, so only bombs really flying count)
+            const dir = prev && moved > 2 ? Math.atan2(b.y - prev.y, b.x - prev.x) : prev && prev.dir;
+            if (prev && prev.dir != null && moved > 2) worst = Math.max(worst, Math.abs(angleDiff(prev.dir, dir)));
             last.set(b, { x: b.x, y: b.y, dir });
           }
           if (++n > 600) { clearInterval(iv); done({ bombs, worst }); }
