@@ -365,6 +365,7 @@ function updateGame(dt) {
   separateEnemies();
   contactDamage(p);
   updateShots(dt);
+  trimShots();   // (bombs from bounces and Ricochet are thrown while the shots move, not in a volley)
   updateEnemyShots(dt, p);
   updateZones(dt, p);
   updateWarns(dt);

@@ -113,4 +113,65 @@ module.exports = [
       assert.equal(r.cryptNormal.boss, 0, 'still no relics on Normal');
     },
   },
+  {
+    name: "with lots of bombs and Overdrive, every bomb lands and goes off",
+    size: SIZES.phone,
+    async run(page) {
+      await page.evaluate(() => { RR.save().hero = 'sapper'; if (!RR.save().heroes.includes('sapper')) RR.save().heroes.push('sapper'); });
+      await startRun(page, 0);
+      const r = await page.evaluate(() => {
+        const G = RR.G, p = G.player;
+        p.invuln = 99999;
+        p.perks = { multishot: 4, front: 4, diag: 4, side: 3, rear: 3, bouncy: 3, ricochet: 3 }; refreshStats(p);
+        const wall = () => { for (let i = 0; i < 4; i++) { const e = spawnEnemy('stumpy', ROOM_X + 50 + i * 70, ROOM_Y + 100); e.spawnT = 0; e.hp = e.maxHp = 1e9; } };
+        wall();
+        // every bomb thrown, and whether it went off
+        const thrown = new Set(), blew = new Set(), orig = bombBlast;
+        window.bombBlast = b => { blew.add(b); return orig(b); };
+        let most = 0, mostBombs = 0;
+        for (let i = 0; i < 6 * 60; i++) {
+          p.overdriveT = 5;
+          if (G.state !== 'play') G.state = 'play';
+          updateGame(1 / 60);
+          for (const b of G.shots) if (b.lob) thrown.add(b);
+          most = Math.max(most, G.shots.length);
+          mostBombs = Math.max(mostBombs, G.shots.filter(b => b.lob).length);
+        }
+        window.bombBlast = orig;
+        const vanished = [...thrown].filter(b => !blew.has(b) && !G.shots.includes(b)).length;
+        return { thrown: thrown.size, vanished, most, mostBombs, cap: MAX_BOMBS };
+      });
+      assert.ok(r.most >= 100, `only ${r.most} shots at once: not enough to test the cap`);
+      assert.equal(r.vanished, 0, `${r.vanished} of ${r.thrown} bombs vanished in the air`);
+      // (a volley thrown after the trim can go a little over, until the next frame)
+      assert.ok(r.mostBombs <= r.cap + 40, `${r.mostBombs} bombs in the air at once`);
+    },
+  },
+  {
+    name: 'every hero fires real shots with every shot perk at its highest level',
+    size: SIZES.phone,
+    async run(page) {
+      await startRun(page);
+      const bad = await page.evaluate(() => {
+        const G = RR.G, p = G.player, out = [];
+        const hero0 = p.hero;
+        for (const hero of HEROES) {
+          p.hero = hero;
+          p.perks = { front: 4, diag: 4, side: 3, rear: 3 }; refreshStats(p);
+          G.shots.length = 0;
+          fireVolley(p, -Math.PI / 2);
+          for (const b of G.shots) {
+            const vals = [b.x, b.y, b.vx, b.vy].concat(b.lob ? [b.lob.x1, b.lob.y1] : []);
+            if (!vals.every(Number.isFinite)) { out.push(hero.id); break; }
+          }
+          // no two shots fly the same way
+          const dirs = G.shots.map(b => b.lob ? Math.atan2(b.lob.y1 - b.lob.y0, b.lob.x1 - b.lob.x0) : Math.atan2(b.vy, b.vx)).map(a => a.toFixed(3));
+          if (!hero.drone && hero.shot !== 'bomb' && new Set(dirs).size < dirs.length - 4) out.push(`${hero.id}: shots on top of each other`);
+        }
+        p.hero = hero0; G.shots.length = 0;
+        return out;
+      });
+      assert.deepEqual(bad, []);
+    },
+  },
 ];

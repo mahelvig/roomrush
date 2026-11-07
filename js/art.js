@@ -1306,6 +1306,26 @@ function drawEnemyShot(ctx, b, t) {
   ctx.restore();
 }
 
+// A bomb's body (with its outline and shine) drawn once per size: with Overdrive and many extra
+// shots there can be hundreds in the air, and one picture each is much cheaper than a path each.
+const BOMB_SPRITE_RES = 4, _bombSprites = new Map();
+function bombSprite(s) {
+  const key = Math.round(s * 20);
+  let cv = _bombSprites.get(key);
+  if (!cv) {
+    const r = 5 * s + 1.6, px = Math.ceil(r * 2 * BOMB_SPRITE_RES);
+    cv = document.createElement('canvas');
+    cv.width = cv.height = px;
+    const g = cv.getContext('2d');
+    g.scale(BOMB_SPRITE_RES, BOMB_SPRITE_RES);
+    g.translate(px / 2 / BOMB_SPRITE_RES, px / 2 / BOMB_SPRITE_RES);
+    circ(g, 0, 0, 5 * s); fs(g, '#3a3f4a', 1.6);
+    shine(g, -1.6 * s, -1.8 * s, 1.6 * s, 1.1 * s, 0.5);
+    _bombSprites.set(key, cv);
+  }
+  return cv;
+}
+
 const ELEMENT_COLORS = { fire: '#ff8a2a', poison: '#7be05a', frost: '#7fdcff', lightning: '#ffe55a', curse: '#c06bff' };
 
 function drawPlayerShot(ctx, b, t) {
@@ -1315,8 +1335,8 @@ function drawPlayerShot(ctx, b, t) {
     const y = b.y - (b.z || 0);
     drawShadow(ctx, b.x, b.y + 4, 4.5 * s, 0.25);
     if (b.glow) glow(ctx, b.x, y, 16 * s, glowC, 0.8);
-    circ(ctx, b.x, y, 5 * s); fs(ctx, '#3a3f4a', 1.6);
-    shine(ctx, b.x - 1.6 * s, y - 1.8 * s, 1.6 * s, 1.1 * s, 0.5);
+    const spr = bombSprite(s), half = spr.width / 2 / BOMB_SPRITE_RES;
+    ctx.drawImage(spr, b.x - half, y - half, half * 2, half * 2);
     glow(ctx, b.x + 3 * s, y - 5 * s, 7 + Math.sin(t * 40 + b.x) * 2, '#ffcf3f', 0.9);
     return;
   }
