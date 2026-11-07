@@ -11,7 +11,8 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
 - The Depths: endless worlds, each harder than the last.
 - Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
   play. Every relic that drops rolls its own random affixes (stronger in harder worlds): keep
-  the best in your bag, level them up and salvage the rest. Level up both perks of a found recipe in a run and they merge into an evolution.
+  the best in your bag, level them up and salvage the rest. Level up both perks of a found recipe in a run and they merge into an evolution
+  (10 recipes; perk cards and the pause menu show what each one still needs).
 - Loot: every monster can drop Relic Dust, elites and bosses Star Shards, and both level up
   your relics. Rare loot falls with a beam of light and its name, and the end of a run lists
   everything you found. Now and then a Hoarder turns up: catch it before it runs off with its sack.

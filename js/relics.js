@@ -48,6 +48,18 @@ const EVOLUTIONS = [
     desc: 'Your blades also stop enemy shots, and the orbs cut enemies too', mod: s => { s.bladestorm = 1; } },
   { id: 'zero', name: 'Absolute Zero', from: ['frost', 'timewarp'], icon: 'e_zero',
     desc: 'Frozen enemies take 40% more damage, and shatter when they die, freezing the ones next to them', mod: s => { s.zero = 1; } },
+  { id: 'assassin', name: "Assassin's Mark", from: ['keen', 'deadly'], icon: 'e_assassin',
+    desc: 'Critical chance +10%, and a critical hit finishes off a normal enemy below 35% HP', mod: s => { s.assassin = 1; s.crit += 0.1; } },
+  { id: 'wildfire', name: 'Wildfire', from: ['flame', 'venom'], icon: 'e_wildfire',
+    desc: 'Enemies both burning and poisoned take double damage from both, and the fire spreads when they die', mod: s => { s.wildfire = 1; } },
+  { id: 'frenzy', name: 'Blood Frenzy', from: ['vampire', 'rage'], icon: 'e_frenzy',
+    desc: 'Every kill gives +4% damage until the room is cleared (up to +60%), and kills heal twice as much', mod: s => { s.bloodFrenzy = 1; } },
+  { id: 'cataclysm', name: 'Cataclysm', from: ['meteor', 'storm'], icon: 'e_cataclysm',
+    desc: 'Meteors and lightning strike twice as often, and meteors are bigger', mod: s => { s.cataclysm = 1; } },
+  { id: 'angel', name: 'Guardian Angel', from: ['holy', 'regen'], icon: 'e_angel',
+    desc: 'Your Holy Shield grows back 5 s after it breaks, even mid-room, and heals 10% of your max HP when it breaks', mod: s => { s.angel = 1; } },
+  { id: 'pinball', name: 'Pinball', from: ['bouncy', 'ricochet'], icon: 'e_pinball',
+    desc: 'Shots bounce off walls twice more, and get 25% stronger every time they bounce or jump', mod: s => { s.pinball = 1; s.wallBounce += 2; } },
 ];
 for (const ev of EVOLUTIONS) {
   Object.assign(ev, { rarity: 'evolution', max: 1, evo: true });
@@ -124,6 +136,11 @@ function collectRelic(k, p) {
 }
 
 // ---------- in the run ----------
+
+// Recipes found (and not merged yet in this run) that a perk is part of.
+const recipesWith = (p, perkId) => EVOLUTIONS.filter(ev => save.recipes[ev.id] && !p.perks[ev.id] && ev.from.includes(perkId));
+// How far a run is with a recipe: each perk's level and the level it needs.
+const recipeParts = (p, ev) => ev.from.map(id => ({ k: PERK_BY_ID[id], have: p.perks[id] || 0, need: evoLevel(PERK_BY_ID[id]) }));
 
 // Recipes found whose two perks are both at the level the recipe needs in this run, and not merged yet.
 function readyEvolutions(p) {

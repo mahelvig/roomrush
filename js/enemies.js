@@ -527,6 +527,9 @@ const AI = {
 
 // ---------- update ----------
 
+// Wildfire: burning and poisoned at once, both hurt twice as much.
+const wildfireK = e => (G.player.s.wildfire && e.status.burn > 0 && e.status.poison > 0 ? 2 : 1);
+
 function updateEnemy(e, dt, p) {
   e.flash = Math.max(0, e.flash - dt);
   e.bladeT = (e.bladeT || 0) - dt;
@@ -537,7 +540,7 @@ function updateEnemy(e, dt, p) {
     st.burnTick -= dt;
     if (st.burnTick <= 0) {
       st.burnTick = 0.5;
-      hurtEnemy(e, st.burnDps * 0.5, { color: '#ff9a3c', small: true, dot: true });
+      hurtEnemy(e, st.burnDps * 0.5 * wildfireK(e), { color: '#ff9a3c', small: true, dot: true });
       FX.burst(e.x, e.y - e.r * 0.5, ['#ff8a2a', '#ffd35a'], 3, { angle: -Math.PI / 2, spread: 0.6, min: 20, max: 60 });
     }
     if (st.burn <= 0) st.burnDps = 0;
@@ -547,7 +550,7 @@ function updateEnemy(e, dt, p) {
     st.poisonTick -= dt;
     if (st.poisonTick <= 0) {
       st.poisonTick = 0.5;
-      hurtEnemy(e, st.poisonDps * 0.5, { color: '#8cf06a', small: true, dot: true });
+      hurtEnemy(e, st.poisonDps * 0.5 * wildfireK(e), { color: '#8cf06a', small: true, dot: true });
       FX.burst(e.x, e.y - e.r * 0.3, '#7be05a', 2, { angle: -Math.PI / 2, spread: 0.5, min: 10, max: 40 });
     }
     if (st.poison <= 0) st.poisonDps = 0;
@@ -638,6 +641,11 @@ function shotHits(b, e) {
   }
   const crit = Math.random() < s.crit;
   if (crit) d *= s.critMul;
+  // Assassin's Mark: a crit finishes off a normal enemy that is low
+  if (crit && s.assassin && !e.boss && !e.elite && !e.def.harmless && e.hp - d < e.maxHp * 0.35 && e.hp > d) {
+    FX.text(e.x, e.y - e.r - 16, 'FINISHED', '#ff6ad5', 11, { pop: 0.5 });
+    d = e.hp + 1;
+  }
   if (b.main && e.boss) d *= p.hero.vsBoss || 1;
   d = markDamage(e, d);
   if (s.headshot && !e.boss && !e.elite && b.main && Math.random() < s.headshot) {
@@ -745,7 +753,16 @@ function killEnemy(e) {
     else if (!e.def.harmless) dropMaterials(e);
   }
 
-  if (s.vamp) healPlayer(p.s.maxHp * s.vamp);
+  if (s.vamp) healPlayer(p.s.maxHp * s.vamp * (s.bloodFrenzy ? 2 : 1));
+  if (s.bloodFrenzy && !e.def.harmless) p.frenzy = Math.min(0.6, (p.frenzy || 0) + 0.04);   // Blood Frenzy
+  if (s.wildfire && e.status.burn > 0) {   // Wildfire: the fire jumps to the ones next to it
+    for (const o of G.enemies) {
+      if (o === e || !canTarget(o) || dist2(o.x, o.y, e.x, e.y) > 70 * 70) continue;
+      o.status.burn = 2.5;
+      o.status.burnDps = Math.max(o.status.burnDps, e.status.burnDps);
+    }
+    FX.ring(e.x, e.y, 70, '#ff8a2a', 0.35, 4);
+  }
   if (e.status.curse > 0 && s.curse) {
     const n = 2 + s.curse;
     for (let i = 0; i < n; i++) {
