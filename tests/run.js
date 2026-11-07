@@ -36,10 +36,10 @@ const filter = (process.argv[2] || '').toLowerCase();
       page = await openGame(browser, server.url, t.size, t.options);
       await t.run(page, { base: server.url, browser });
       if (page.errors.length) throw new Error(`page errors: ${page.errors.join(' | ')}`);
-      console.log(`  ✓ ${t.label} (${Date.now() - start} ms)`);
+      console.log(`  ok    ${t.label} (${Date.now() - start} ms)`);
     } catch (e) {
       failed++;
-      console.log(`  ✗ ${t.label}\n      ${String(e.message || e).split('\n').join('\n      ')}`);
+      console.log(`  FAIL  ${t.label}\n      ${String(e.message || e).split('\n').join('\n      ')}`);
     } finally {
       if (page) await page.context().close();
     }
