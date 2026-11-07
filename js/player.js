@@ -158,7 +158,28 @@ function updatePlayer(p, dt) {
   updateRelics(p, dt);
 }
 
-const MAX_SHOTS = 120;
+const MAX_SHOTS = 120, MAX_BOMBS = 360;
+
+// Too many shots at once: the oldest straight shots go first. A bomb in the air is never just
+// dropped (it would vanish before it lands): bombs are short-lived, so they get room of their own,
+// and only past MAX_BOMBS do the oldest go off early.
+function trimShots() {
+  const S = G.shots;
+  let over = S.length - MAX_SHOTS;
+  for (let i = 0; i < S.length && over > 0;) {
+    if (S[i].lob) i++;
+    else { S.splice(i, 1); over--; }
+  }
+  let bombs = S.reduce((n, b) => n + (b.lob ? 1 : 0), 0);
+  for (let i = 0; i < S.length && bombs > MAX_BOMBS;) {
+    if (!S[i].lob) { i++; continue; }
+    const b = S[i];
+    S.splice(i, 1);
+    bombs--;
+    b.bounce = b.ric = 0;   // (going off early, it doesn't bounce on: that would only add bombs)
+    bombBlast(b);
+  }
+}
 
 const elementGlow = s =>
   s.lightning ? ELEMENT_COLORS.lightning : s.curse ? ELEMENT_COLORS.curse : s.frost ? ELEMENT_COLORS.frost
@@ -171,13 +192,14 @@ function fireVolley(p, ang) {
   const n = 1 + s.front;
   if (s.lance) fireLance(p, ang, dmg * n * 1.1);
   else for (let i = 0; i < n; i++) dirs.push([ang, (i - (n - 1) / 2) * 7]);
-  const diagAngles = [0.45, 0.22, 0.68];
-  for (let i = 0; i < s.diag; i++) { dirs.push([ang + diagAngles[i], 0]); dirs.push([ang - diagAngles[i], 0]); }
+  // (one angle for each level of Diagonal Shots; side and rear shots fan out evenly)
+  const diagAngles = [0.45, 0.22, 0.68, 0.9];
+  for (let i = 0; i < s.diag; i++) { const d = diagAngles[i % diagAngles.length]; dirs.push([ang + d, 0]); dirs.push([ang - d, 0]); }
   for (let i = 0; i < s.side; i++) {
-    const o = s.side > 1 ? (i ? 0.16 : -0.16) : 0;
+    const o = (i - (s.side - 1) / 2) * 0.32;
     dirs.push([ang + Math.PI / 2 + o, 0]); dirs.push([ang - Math.PI / 2 - o, 0]);
   }
-  for (let i = 0; i < s.rear; i++) dirs.push([ang + Math.PI + (s.rear > 1 ? (i ? 0.2 : -0.2) : 0), 0]);
+  for (let i = 0; i < s.rear; i++) dirs.push([ang + Math.PI + (i - (s.rear - 1) / 2) * 0.4, 0]);
   const glowC = elementGlow(s);
   if (p.hero.shot === 'bomb') { if (dirs.length) throwVolley(p, ang, dirs, dmg, glowC); else { p.recoil = 1; Sound.play('zap'); } return; }
   for (const [a, off] of dirs) {
@@ -192,7 +214,7 @@ function fireVolley(p, ang) {
       range: p.target ? clamp(dist(p.x, p.y, p.target.x, p.target.y) + 40, 160, 560) : 220,
     });
   }
-  if (G.shots.length > MAX_SHOTS) G.shots.splice(0, G.shots.length - MAX_SHOTS);
+  trimShots();
   p.recoil = 1;
   Sound.play(s.lance ? 'zap' : p.hero.shot === 'arrow' ? 'shoot' : p.hero.shot === 'orb' ? 'orb' : 'bolt');
 }
@@ -213,7 +235,7 @@ function throwVolley(p, ang, dirs, dmg, glowC) {
     throwBomb(p, p.x + Math.cos(ang) * 8, p.y - 6, clamp(x1, ROOM_X + 6, ROOM_X + ROOM_W - 6), clamp(y1, ROOM_Y + 6, ROOM_Y + ROOM_H - 6), dmg,
       { follow: ahead && !off ? t : null, glow: glowC });
   }
-  if (G.shots.length > MAX_SHOTS) G.shots.splice(0, G.shots.length - MAX_SHOTS);
+  trimShots();
   p.recoil = 1;
   Sound.play('toss');
 }
