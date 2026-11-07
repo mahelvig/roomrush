@@ -24,7 +24,7 @@ function lootSummary(sum) {
     const k = l.kind === 'relic' ? RELIC_BY_ID[l.id] : PERK_BY_ID[l.id];
     const R = RARITY[k.rarity];
     const tip = l.kind === 'relic' ? (l.aff || []).map(affixText).join(', ') : '';
-    chips.push(`<span class="loot-chip" style="--rc:${R.color}" title="${tip}"><canvas class="icon" data-icon="${k.icon}"></canvas>${l.kind === 'recipe' ? 'Recipe: ' : ''}${k.name}${tip ? ` <small>${l.aff.length}✦</small>` : ''}</span>`);
+    chips.push(`<span class="loot-chip" style="--rc:${R.color}" title="${tip}"><canvas class="icon" data-icon="${k.icon}"></canvas>${l.kind === 'recipe' ? 'Recipe: ' : ''}${k.name}${tip ? ` <small>· ${l.aff.length} affix${l.aff.length > 1 ? 'es' : ''}</small>` : ''}</span>`);
   }
   return chips.length ? `<div class="loot-found"><h3>Loot</h3><div class="loot-list">${chips.join('')}</div></div>` : '';
 }
@@ -327,7 +327,7 @@ const UI = {
               <b>${r.name} ${pips(it.L)}</b>
               <span><i class="rar-tag" style="color:${R.color}">${R.name}</i> · ${r.desc(it.L)}</span>
               <span class="affixes">${it.aff.map(a => `<i>${affixText(a)}</i>`).join('')}</span>
-              ${better ? '<span class="better">▲ Better affixes than the one you wear</span>' : ''}
+              ${better ? '<span class="better">Better affixes than the one you wear</span>' : ''}
             </div>
             <div class="btns">
               <button class="btn small ${on ? 'blue' : 'green'}" data-a="wearRelic" data-id="${it.uid}">${on ? 'Take off' : 'Wear'}</button>
@@ -455,7 +455,7 @@ const UI = {
       <div class="tier-row panel" data-w="${i}">
         <button class="round small" data-a="tier" data-w="${i}" data-d="-1" ${t <= 0 ? 'disabled' : ''} aria-label="Easier">${SVG.back}</button>
         <div class="tier-info">
-          <b class="t${Math.min(t, 4)}">${tierName(t)}${done ? ' <i>✓</i>' : ''}</b>
+          <b class="t${Math.min(t, 4)}">${tierName(t)}${done ? ' <i class="tick" title="Cleared"></i>' : ''}</b>
           <span>${t ? `Enemies ×${mult(TIER.hp ** t)} HP · ×${mult(TIER.gold ** t)} gold` : 'The normal game'}</span>
         </div>
         <button class="round small flip" data-a="tier" data-w="${i}" data-d="1" ${t >= top ? 'disabled' : ''} aria-label="Harder">${SVG.back}</button>
@@ -585,7 +585,7 @@ const UI = {
       // part of a recipe found: which one, and what the other half needs
       const recipe = k.evo ? '' : recipesWith(p, k.id).map(ev => {
         const other = recipeParts(p, ev).find(x => x.k.id !== k.id);
-        return `<span class="recipe-tag">⚗ ${ev.name} · ${other.have >= other.need ? `${other.k.name} ✓` : `needs ${other.k.name} ${other.need}`}</span>`;
+        return `<span class="recipe-tag">Recipe: ${ev.name} · ${other.have >= other.need ? `${other.k.name} <i class="tick" title="Done"></i>` : `needs ${other.k.name} ${other.need}`}</span>`;
       }).join('');
       return `
         <button class="card r-${k.rarity}" data-a="pick" data-i="${i}" style="--rc:${R.color};animation-delay:${i * 0.08}s">

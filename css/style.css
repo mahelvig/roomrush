@@ -477,6 +477,8 @@ header h2 { flex: 1; font-size: 1.7em; }
 .tier-info { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
 .tier-info b { font-family: var(--title); font-weight: normal; font-size: 1.15em; }
 .tier-info b i { font-style: normal; color: #7be05a; }
+/* a check mark drawn with two borders */
+.tick { display: inline-block; width: .32em; height: .62em; border: solid #7be05a; border-width: 0 .14em .14em 0; transform: rotate(45deg); margin: 0 .2em .1em .25em; }
 .tier-info span { color: var(--muted); font-size: .8em; }
 .tier-info .t1 { color: #ffcf3f; }
 .tier-info .t2 { color: #ff9a3c; }

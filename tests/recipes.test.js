@@ -108,7 +108,7 @@ module.exports = [
         const pause = [...document.querySelectorAll('.pl.r-evolution')].map(e => `${e.querySelector('b').textContent} ${e.querySelector('.rp').textContent}`);
         return { tags, cardsFit, pause };
       });
-      assert.deepEqual(r.tags, ['⚗ Laser Lance · needs Front Shot 3', '⚗ Wildfire · Venom Touch ✓']);
+      assert.deepEqual(r.tags, ['Recipe: Laser Lance · needs Front Shot 3', 'Recipe: Wildfire · Venom Touch ']);
       assert.ok(r.cardsFit, 'the perk cards should fit the screen');
       assert.deepEqual(r.pause, ['Laser Lance Front Shot 2/3 · Piercing Shot 0/3', 'Wildfire Flame Touch 0/3 · Venom Touch 3/3']);
     },
