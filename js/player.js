@@ -38,7 +38,7 @@ function playerFall(p) {
 }
 
 const rageMult = p => 1 + p.s.rage * clamp(1 - p.hp / p.s.maxHp, 0, 1);
-const playerAtk = p => p.s.atk * (1 + p.s.atkPct) * rageMult(p);
+const playerAtk = p => p.s.atk * (1 + p.s.atkPct) * rageMult(p) * (1 + (p.s.bloodFrenzy ? p.frenzy || 0 : 0));
 
 function canTarget(e) {
   return !e.dead && e.spawnT <= 0 && !e.hidden && !e.statue;
@@ -104,7 +104,7 @@ function updatePlayer(p, dt) {
   p.recoil = Math.max(0, p.recoil - dt * 6);
   if (p.shieldBurst) { p.shieldBurst = false; shieldBurst(p); }
   // Holy Shield level 4 grows back in the middle of a room too
-  if (p.s.shield >= 4 && !p.shieldUp && !G.cleared && (p.shieldT -= dt) <= 0) {
+  if ((p.s.shield >= 4 || (p.s.shield && p.s.angel)) && !p.shieldUp && !G.cleared && (p.shieldT -= dt) <= 0) {
     p.shieldUp = true;
     FX.ring(p.x, p.y, 26, '#ffe58a', 0.5, 4);
     FX.text(p.x, p.y - 44, 'Shield back!', '#ffe58a', 11, { life: 1.2 });
@@ -219,15 +219,16 @@ function throwVolley(p, ang, dirs, dmg, glowC) {
 }
 
 function throwBomb(p, x0, y0, x1, y1, dmg, o = {}) {
-  const d = dist(x0, y0, x1, y1);
+  const d = dist(x0, y0, x1, y1), dur = clamp(d / 380, 0.28, 0.75);
   G.shots.push({
     x: x0, y: y0, vx: 0, vy: 0, z: 0, r: 4, size: p.s.size, dmg, kind: 'bomb', glow: o.glow, blast: true, main: true,
-    lob: { x0, y0, x1, y1, t: 0, dur: clamp(d / 380, 0.28, 0.75), h: 14 + d * 0.12 },
+    lob: { x0, y0, x1, y1, t: 0, dur, h: 14 + d * 0.12, v: d / dur },
     follow: o.follow || null, pierce: p.s.pierce, bounce: o.bounce ?? p.s.wallBounce, ric: o.ric ?? p.s.ricochet, hit: o.hit ? o.hit.slice() : [], life: 3,
   });
 }
 
 const BOMB_TURN = 3;   // how fast an aimed bomb can curve after its target (radians a second)
+const BOMB_MIN_SPEED = 0.6;   // and it keeps at least this much of the speed it was thrown with
 
 // Moves a bomb along its arc; true once it has gone off.
 function updateBomb(b, dt) {
@@ -237,12 +238,14 @@ function updateBomb(b, dt) {
   const k = Math.min(1, L.t / L.dur);
   // The aimed bomb follows its target for most of the flight, but it may only curve, never
   // turn sharply or back: a fast enemy diving past it just leaves it to land near where it was going.
+  // It also never slows down much: a target coming right under it would otherwise stop it in the
+  // air, and a bomb that hardly moves can swing round on the spot.
   if (b.follow && canTarget(b.follow) && k < 0.8) {
     const f = Math.min(1, dt * 10);
     const nx = L.x1 + (b.follow.x - L.x1) * f, ny = L.y1 + (b.follow.y - L.y1) * f;
     const a0 = Math.atan2(L.y1 - b.y, L.x1 - b.x), a1 = Math.atan2(ny - b.y, nx - b.x);
     const turn = clamp(angleDiff(a0, a1), -BOMB_TURN * dt, BOMB_TURN * dt);
-    const d = Math.hypot(nx - b.x, ny - b.y);
+    const d = Math.max(Math.hypot(nx - b.x, ny - b.y), L.v * BOMB_MIN_SPEED * left);
     L.x1 = b.x + Math.cos(a0 + turn) * d;
     L.y1 = b.y + Math.sin(a0 + turn) * d;
   }
@@ -291,18 +294,18 @@ function updateSkyAttacks(p, dt) {
   if (s.meteor) {
     p.meteorT -= dt;
     if (p.meteorT <= 0) {
-      p.meteorT = Math.max(1.5, 6 - s.meteor * 1.2);
+      p.meteorT = Math.max(1.5, 6 - s.meteor * 1.2) * (s.cataclysm ? 0.5 : 1);
       const targets = skyTargets(p);
       if (targets.length) {
         const e = pick(targets);
-        G.strikes.push({ x: e.x, y: e.y, r: 42, t: 0.7, max: 0.7, dmg: playerAtk(p) * 1.8, owner: 'player', kind: 'meteor' });
+        G.strikes.push({ x: e.x, y: e.y, r: s.cataclysm ? 60 : 42, t: 0.7, max: 0.7, dmg: playerAtk(p) * 1.8, owner: 'player', kind: 'meteor' });
       }
     }
   }
   if (s.storm) {
     p.stormT -= dt;
     if (p.stormT <= 0) {
-      p.stormT = Math.max(1.2, 3.2 - s.storm * 0.6);
+      p.stormT = Math.max(1.2, 3.2 - s.storm * 0.6) * (s.cataclysm ? 0.5 : 1);
       const targets = shuffle(skyTargets(p)).slice(0, s.storm + 1);
       for (const e of targets) {
         FX.bolt(e.x + rand(-30, 30), e.y - 220, e.x, e.y, '#ffe55a', 2.5);
@@ -328,7 +331,8 @@ function hurtPlayer(amount, o = {}) {
   if (p.shieldUp) {
     p.shieldUp = false;
     p.shieldBurst = true;   // handled in updatePlayer, we may be in the middle of a loop over shots or enemies
-    p.shieldT = SHIELD_REGROW;
+    p.shieldT = p.s.angel ? 5 : SHIELD_REGROW;
+    if (p.s.angel) healPlayer(p.s.maxHp * 0.1);   // Guardian Angel
     p.invuln = 0.5;
     FX.ring(p.x, p.y, 30, '#ffe58a', 0.4, 5);
     FX.burst(p.x, p.y, ['#ffe58a', '#ffffff'], 10, { min: 60, max: 140 });

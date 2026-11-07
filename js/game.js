@@ -61,7 +61,7 @@ function enterRoom(idx) {
   G.golem = null;
   FX.clear();
   const p = G.player;
-  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0, overdriveT: 0 });
+  Object.assign(p, { x: DOOR_X, y: ROOM_Y + ROOM_H - 36, vx: 0, vy: 0, invuln: 1, target: null, dead: false, slowT: 0, roomHits: 0, overdriveT: 0, frenzy: 0 });
   p.volleys.length = 0;
   for (const h of G.helpers) { h.x = p.x; h.y = p.y; }
   Object.assign(G, { cleared: false, clearT: 0, perkShown: false, doorOpen: false, doorT: 0, boss: null, bossDead: false, bossDeadT: 0, winShown: false, gale: null, galeDir: null });
@@ -470,6 +470,7 @@ function updateShots(dt) {
     if (!(b.boomerang && b.back) && tileAt(nx, ny) === TILE.WALL) {
       if (b.bounce > 0) {
         b.bounce--;
+        if (G.player.s.pinball) b.dmg *= 1.25;   // Pinball
         const hx = tileAt(nx, b.y) === TILE.WALL, hy = tileAt(b.x, ny) === TILE.WALL;
         if (hx) b.vx = -b.vx;
         if (hy) b.vy = -b.vy;
@@ -496,6 +497,7 @@ function updateShots(dt) {
         const next = nearestEnemy(b.x, b.y, b.hit, 180);
         if (next) {
           b.ric--;
+          if (G.player.s.pinball) b.dmg *= 1.25;
           const sp = Math.hypot(b.vx, b.vy), a = angleTo(b.x, b.y, next.x, next.y);
           b.vx = Math.cos(a) * sp;
           b.vy = Math.sin(a) * sp;

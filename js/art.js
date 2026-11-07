@@ -1873,6 +1873,13 @@ const ICONS = {
     }
     circ(c, 0, 0, 4); fs(c, '#7fdcff', 1.4);
   },
+  // the newer evolutions: their two perks' icons merged inside the ring, in a glow of their own
+  e_assassin(c) { evoCombo(c, 'eye', 'crit', '#ff6ad5'); },
+  e_wildfire(c) { evoCombo(c, 'fire', 'poison', '#b6ff5a'); },
+  e_frenzy(c) { evoCombo(c, 'fang', 'rage', '#ff4f6d'); },
+  e_cataclysm(c) { evoCombo(c, 'meteor', 'storm', '#ffb02e'); },
+  e_angel(c) { evoCombo(c, 'shield', 'regen', '#fff3a8'); },
+  e_pinball(c) { evoCombo(c, 'bounce', 'ricochet', '#5fd2ff'); },
   turret(c) {
     rrect(c, -14, 4, 28, 12, 4); fs(c, '#c45a1c', 2);
     rrect(c, 2, -9, 18, 7, 3); fs(c, '#5a6478', 2);
@@ -1891,6 +1898,16 @@ function relicDisc(c, color) {
   for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i * TAU) / 6; c.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); }
   c.closePath();
   c.strokeStyle = 'rgba(255,230,160,0.55)'; c.lineWidth = 1.6; c.stroke();
+}
+// Two perk icons, one over the other, in the evolution ring.
+function evoCombo(c, a, b, color) {
+  evoRing(c);
+  glow(c, 0, 0, 26, color, 0.7);
+  for (const [id, x, y] of [[a, -6, -5], [b, 6, 6]]) {
+    c.save(); c.translate(x, y); c.scale(0.58, 0.58);
+    (ICONS[id] || ICONS.star)(c);
+    c.restore();
+  }
 }
 function evoRing(c) {
   for (let i = 0; i < 3; i++) {

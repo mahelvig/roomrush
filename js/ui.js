@@ -288,18 +288,24 @@ const UI = {
     const pips = L => `<span class="pips">${Array.from({ length: RELIC_MAX }, (_, i) => `<i class="${i < L ? 'on' : ''}"></i>`).join('')}</span>`;
     let body;
     if (tab === 'recipes') {
-      body = EVOLUTIONS.map(ev => {
-        const found = !!save.recipes[ev.id];
+      const found = EVOLUTIONS.filter(ev => save.recipes[ev.id]).length;
+      const ing = (icon, name, lv, cls = '') => `<span class="ing ${cls}"><canvas class="icon" data-icon="${icon}"></canvas><small>${name}</small>${lv ? `<em>Lv ${lv}</em>` : ''}</span>`;
+      body = `<p class="sub recipe-count">${found} of ${EVOLUTIONS.length} recipes found</p>` + EVOLUTIONS.map(ev => {
+        if (!save.recipes[ev.id]) {
+          return `
+            <div class="recipe panel dim">
+              <div class="formula">${ing('gift', '?')}<b class="op">+</b>${ing('gift', '?')}<b class="op">=</b>${ing('gift', 'Unknown recipe', 0, 'evo')}</div>
+              <p>Still to be found</p>
+            </div>`;
+        }
+        const [a, b] = ev.from.map(id => PERK_BY_ID[id]);
         return `
-          <div class="upg panel ${found ? '' : 'dim'}">
-            <canvas class="icon" data-icon="${found ? ev.icon : 'gift'}"></canvas>
-            <div class="u-info">
-              <b>${found ? ev.name : 'Unknown recipe'}</b>
-              <span>${found ? `<em>${ev.from.map(id => `${PERK_BY_ID[id].name} ${evoLevel(PERK_BY_ID[id])}`).join(' + ')}</em> · ${ev.desc}` : 'Still to be found'}</span>
-            </div>
+          <div class="recipe panel">
+            <div class="formula">${ing(a.icon, a.name, evoLevel(a))}<b class="op">+</b>${ing(b.icon, b.name, evoLevel(b))}<b class="op">=</b>${ing(ev.icon, ev.name, 0, 'evo')}</div>
+            <p>${ev.desc}</p>
           </div>`;
       }).join('');
-      body += '<p class="sub">Recipes drop where relics do. Get both perks of a recipe to the level shown in one run, and the next perk choice lets you merge them.</p>';
+      body += '<p class="sub">Recipes drop where relics do. Get both perks of a recipe to the level shown in one run, and the next perk choice lets you merge them. In a run, perk cards say which recipe they belong to, and the pause menu shows how far you are.</p>';
     } else {
       const n = relicSlots(), worn = wornRelics();
       const slots = Array.from({ length: n }, (_, i) => {
@@ -576,13 +582,18 @@ const UI = {
       const lv = k.evo ? `<span class="lv">${k.from.map(id => PERK_BY_ID[id].name).join(' + ')}</span>`
         : k.max > 1 && k.max < 99 ? `<span class="lv">${L ? `Lv ${L} → ${L + 1}` : 'New'} <i>of ${k.max}</i></span>` : L ? '' : '<span class="lv">New</span>';
       const up = !k.evo && perkUpgrade(k, L + 1) ? '<span class="up">New effect!</span>' : '';
+      // part of a recipe found: which one, and what the other half needs
+      const recipe = k.evo ? '' : recipesWith(p, k.id).map(ev => {
+        const other = recipeParts(p, ev).find(x => x.k.id !== k.id);
+        return `<span class="recipe-tag">⚗ ${ev.name} · ${other.have >= other.need ? `${other.k.name} ✓` : `needs ${other.k.name} ${other.need}`}</span>`;
+      }).join('');
       return `
         <button class="card r-${k.rarity}" data-a="pick" data-i="${i}" style="--rc:${R.color};animation-delay:${i * 0.08}s">
           <span class="rar">${R.name}</span>
           <canvas class="icon" data-icon="${k.icon}"></canvas>
           <b>${k.name}</b>
           <p>${perkDesc(k, L + 1)}</p>
-          ${up}${lv}
+          ${recipe}${up}${lv}
         </button>`;
     }).join('');
     const owned = Object.keys(p.perks).filter(id => id !== 'patch' && PERK_BY_ID[id]);
@@ -594,6 +605,18 @@ const UI = {
         : `<button class="btn small blue" data-a="reroll" ${save.gems < gemRerollCost() ? 'disabled' : ''}>Reroll ${gemTag(gemRerollCost())}</button>`}
       ${owned.length ? `<div class="owned">${owned.map(id => `<span class="mini r-${PERK_BY_ID[id].rarity}"><canvas class="icon" data-icon="${PERK_BY_ID[id].icon}"></canvas>${p.perks[id] > 1 ? `<em>${p.perks[id]}</em>` : ''}</span>`).join('')}</div>` : ''}
     `, 'perk');
+  },
+
+  // The recipes found, and how far this run is with each.
+  recipeProgress(p) {
+    const list = EVOLUTIONS.filter(ev => save.recipes[ev.id]);
+    if (!list.length) return '';
+    return `<h3>Recipes</h3><div class="perk-list">${list.map(ev => {
+      const parts = recipeParts(p, ev), ready = parts.every(x => x.have >= x.need);
+      const state = p.perks[ev.id] ? '<b class="ok">Merged!</b>' : ready ? '<b class="ok">Ready: offered at the next perk choice</b>'
+        : parts.map(x => `<i class="${x.have >= x.need ? 'ok' : ''}">${x.k.name} ${Math.min(x.have, x.need)}/${x.need}</i>`).join(' · ');
+      return `<div class="pl r-evolution"><canvas class="icon" data-icon="${ev.icon}"></canvas><span><b>${ev.name}</b><em class="rp">${state}</em></span></div>`;
+    }).join('')}</div>`;
   },
 
   pause() {
@@ -615,6 +638,7 @@ const UI = {
           const k = PERK_BY_ID[id];
           return `<div class="pl r-${k.rarity}"><canvas class="icon" data-icon="${k.icon}"></canvas><span><b>${k.name}${k.max > 1 && k.max < 99 ? ` · ${p.perks[id]}/${k.max}` : ''}</b>${perkDesc(k, p.perks[id])}</span></div>`;
         }).join('')}</div>` : '<p class="sub">No perks yet. Clear a room to get one.</p>'}
+        ${this.recipeProgress(p)}
         ${(p.relics || []).length ? `<h3>Your relics</h3><div class="perk-list">${p.relics.map(({ id, L, aff }) => {
           const r = RELIC_BY_ID[id];
           return `<div class="pl r-${r.rarity}"><canvas class="icon" data-icon="${r.icon}"></canvas><span><b>${r.name} · level ${L}</b>${r.desc(L)}${(aff || []).length ? `<em class="affixes">${aff.map(affixText).join(' · ')}</em>` : ''}</span></div>`;
