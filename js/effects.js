@@ -60,10 +60,12 @@ const FX = {
     }
     pts.push([x2, y2]);
     this.bolts.push({ pts, color, w, life: 0.16, max: 0.16 });
+    if (this.bolts.length > 50) this.bolts.shift();   // (lots of lightning at once: the oldest go)
   },
 
   ring(x, y, r, color, dur = 0.4, w = 4) {
     this.rings.push({ x, y, r, color, life: dur, max: dur, w });
+    if (this.rings.length > 80) this.rings.shift();   // (lots of blasts at once: the oldest go)
   },
 
   kick(amount) {

@@ -158,17 +158,17 @@ function updatePlayer(p, dt) {
   updateRelics(p, dt);
 }
 
-const MAX_SHOTS = 120, MAX_BOMBS = 360;
-
-// Too many shots at once: the oldest straight shots go first. A bomb in the air is never just
-// dropped (it would vanish before it lands): bombs are short-lived, so they get room of their own,
-// and only past MAX_BOMBS do the oldest go off early.
+// Every shot flies and hits, however many there are: moving them and checking hits is cheap, it is
+// drawing them that costs, so with a lot at once only some are drawn (SHOT_DRAW_BUDGET, game.js).
+// These caps are only a safety net. Past MAX_SHOTS the oldest straight shots go; a bomb in the air
+// is never just dropped (it would vanish before it lands), past MAX_BOMBS the oldest go off early.
+const MAX_SHOTS = 1200, MAX_BOMBS = 600;
 function trimShots() {
   const S = G.shots;
   let over = S.length - MAX_SHOTS;
   for (let i = 0; i < S.length && over > 0;) {
     if (S[i].lob) i++;
-    else { S.splice(i, 1); over--; }
+    else { S.splice(i, 1); over--; G.shotsDropped = (G.shotsDropped || 0) + 1; }
   }
   let bombs = S.reduce((n, b) => n + (b.lob ? 1 : 0), 0);
   for (let i = 0; i < S.length && bombs > MAX_BOMBS;) {

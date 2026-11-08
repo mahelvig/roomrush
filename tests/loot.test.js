@@ -88,13 +88,15 @@ module.exports = [
         const h = spawnHoarder(p);
         h.spawnT = 0;
         const start = dist(h.x, h.y, p.x, p.y);
-        let close = Infinity;
+        // how far it stays in the last of the 3 seconds, on average: in a room full of rocks it can be
+        // cornered for a moment, but one that stood still would be caught by then
+        let late = 0;
         // the hero walks at it for 3 seconds
         for (let i = 0; i < 180; i++) {
           const a = angleTo(p.x, p.y, h.x, h.y);
           moveEntity(p, Math.cos(a) * p.s.speed / 60, Math.sin(a) * p.s.speed / 60, true);
           updateEnemy(h, 1 / 60, p);
-          close = Math.min(close, dist(h.x, h.y, p.x, p.y));
+          if (i >= 120) late += dist(h.x, h.y, p.x, p.y) / 60;
         }
         const harmless = h.def.harmless && h.dmg === 0;
         // left alone it gets away, with no loot
@@ -109,10 +111,10 @@ module.exports = [
         const kinds = {};
         for (const k of G.pickups) kinds[k.kind] = (kinds[k.kind] || 0) + k.value;
         G.state = 'play';
-        done({ start, close, harmless, escaped, escapedLoot, kinds });
+        done({ start, late, harmless, escaped, escapedLoot, kinds });
       }));
       assert.ok(r.harmless, 'the Hoarder should not hurt');
-      assert.ok(r.close > 40, `the hero got to ${r.close | 0} px of a fleeing Hoarder (started at ${r.start | 0})`);
+      assert.ok(r.late > 60, `the hero got within ${r.late | 0} px of a fleeing Hoarder (started at ${r.start | 0})`);
       assert.ok(r.escaped && r.escapedLoot === 0, 'it should get away with no loot');
       assert.ok(r.kinds.coin > 20 && r.kinds.gem >= 2 && r.kinds.dust >= 12 && r.kinds.shard >= 1, `caught: ${JSON.stringify(r.kinds)}`);
     },
