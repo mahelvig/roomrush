@@ -675,6 +675,8 @@ function rebuildRoomBG() {
 const ART_TOP = { treant: 2.4, magmaKing: 1.5, lich: 2, stump: 1.6, mushroom: 1.3, mage: 1.8, goblin: 1.6, skeleton: 1.7, yeti: 1.3, golem: 1.2,
   sentinel: 1.6, gargoyle: 1.5, shaman: 2.1, tortoise: 1.1, harpy: 1.6, roc: 1.7, soldier: 1.75, hound: 1.1, shieldbearer: 1.6, warden: 1.7, core: 1.9 };
 
+const SHOT_DRAW_BUDGET = 150;   // how many of the hero's shots are drawn at most
+
 function drawGame(ctx) {
   const w = G.world, t = G.time, p = G.player;
   ctx.fillStyle = w.theme.bg;
@@ -787,7 +789,18 @@ function drawGame(ctx) {
   drawAbilityFx(ctx, t);
   if (room.fort) drawFortTop(ctx, t);
 
-  for (const b of G.shots) drawPlayerShot(ctx, b, t);
+  // With a lot of shots at once only some are drawn, always the same ones (each has a fixed random
+  // number), but every one of them still flies and hits. Enemy shots are always all drawn.
+  const keep = Math.min(1, SHOT_DRAW_BUDGET / Math.max(1, G.shots.length));
+  let drawnShots = 0;
+  for (const b of G.shots) {
+    if (keep < 1) {
+      if (b.vis === undefined) b.vis = Math.random();
+      if (b.vis > keep) continue;
+      if (++drawnShots > SHOT_DRAW_BUDGET) break;
+    }
+    drawPlayerShot(ctx, b, t);
+  }
   for (const b of G.eshots) drawEnemyShot(ctx, b, t);
   for (const s of G.strikes) if (s.kind === 'meteor' && s.t < 0.55) drawMeteor(ctx, s, t);
   FX.draw(ctx);

@@ -174,4 +174,49 @@ module.exports = [
       assert.deepEqual(bad, []);
     },
   },
+  {
+    name: 'with hundreds of shots at once every hero keeps all of them, but only some are drawn',
+    size: SIZES.phone,
+    async run(page) {
+      await startRun(page);
+      const r = await page.evaluate(() => {
+        const G = RR.G, p = G.player, ctx = document.getElementById('cv').getContext('2d'), out = [];
+        p.invuln = 99999;
+        const hero0 = p.hero, draw0 = drawPlayerShot;
+        let drawn = 0;
+        window.drawPlayerShot = (...a) => { drawn++; return draw0(...a); };
+        for (const hero of HEROES) {
+          p.hero = hero;
+          p.perks = { multishot: 4, front: 4, diag: 4, side: 3, rear: 3 }; refreshStats(p);
+          G.shots.length = 0; G.enemies.length = 0; G.shotsDropped = 0;
+          // (on open spots near the hero: the room's rocks are different every time)
+          for (let i = 0; i < 4; i++) {
+            const at = randomOpenSpot({ fromX: p.x, fromY: p.y, minDist: 90, maxDist: 200, fit: 16 });
+            const e = spawnEnemy('stumpy', at.x, at.y); e.spawnT = 0; e.hp = e.maxHp = 1e9;
+          }
+          let most = 0, mostDrawn = 0;
+          for (let i = 0; i < 3 * 60; i++) {
+            p.s.rate = 4;   // faster than any real build: lots of shots in the air
+            if (G.state !== 'play') G.state = 'play';
+            updateGame(1 / 60);
+            drawn = 0;
+            ctx.setTransform(G.scale * G.dpr, 0, 0, G.scale * G.dpr, 0, 0);
+            drawGame(ctx);
+            most = Math.max(most, G.shots.length);
+            mostDrawn = Math.max(mostDrawn, drawn);
+          }
+          out.push({ hero: hero.id, most, dropped: G.shotsDropped, mostDrawn, hurt: G.enemies.filter(e => e.hp < e.maxHp).length });
+        }
+        window.drawPlayerShot = draw0;
+        p.hero = hero0; G.shots.length = 0;
+        return { out, budget: SHOT_DRAW_BUDGET };
+      });
+      for (const h of r.out) {
+        assert.ok(h.most > 200, `${h.hero}: only ${h.most} shots at once`);
+        assert.equal(h.dropped, 0, `${h.hero}: ${h.dropped} shots dropped before they could hit`);
+        assert.ok(h.mostDrawn <= r.budget, `${h.hero}: ${h.mostDrawn} shots drawn in one frame`);
+        assert.ok(h.hurt > 0, `${h.hero}: the shots should still hit`);
+      }
+    },
+  },
 ];
