@@ -92,8 +92,9 @@ const lootLevel = () => (G.world.depth ? G.tier : G.tier + Math.log(G.world.hpMu
 // The chance of a drop: elites and bosses from Hard up, the Iron Citadel's chests on every tier,
 // a milestone of The Depths always. In The Depths the tier is the depth, so it has its own odds.
 function relicChance(src) {
-  const t = G.tier, L = lootLevel(), deep = !!G.world.depth;
+  const t = G.tier, L = lootLevel(), deep = !!(G.world.depth || G.world.adv);
   if (src === 'milestone') return 1;
+  if (G.world.adv && t < 1) return 0;   // Adventure: short levels, lean loot (adventure.js)
   if (src === 'chest') return Math.min(0.08, 0.03 + 0.01 * t);
   if (src === 'hoarder') return deep ? 0.3 : t < 1 ? 0 : Math.min(0.9, 0.35 + 0.08 * L);
   if (deep) return src === 'boss' ? 0.15 : 0.04;

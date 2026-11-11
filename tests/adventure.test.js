@@ -278,4 +278,107 @@ module.exports = [
       assert.equal(await page.evaluate(() => RR.G.world.adv), 3);
     },
   },
+  {
+    name: 'replaying an old level neither grows nor breaks the win streak; a new one does',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 5, { streak: 1 });
+      await play(page, 1);
+      await winLevel(page);
+      const replayWin = await page.evaluate(() => RR.save().adv.streak);
+      await play(page, 1);
+      await page.evaluate(() => { const p = RR.G.player; p.invuln = 0; p.s.dodge = 0; p.shieldUp = false; RR.G.run.metaRevive = false; RR.G.run.boostLife = false; hurtPlayer(1e12); });
+      await page.waitForSelector('.result.lose', { timeout: 10000 });
+      const replayLoss = await page.evaluate(() => RR.save().adv.streak);
+      await play(page, 6);
+      await winLevel(page);
+      const newWin = await page.evaluate(() => RR.save().adv.streak);
+      assert.deepEqual([replayWin, replayLoss, newWin], [1, 1, 2]);
+    },
+  },
+  {
+    name: 'a boss level pays no gems when replayed',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 15);
+      const gems = await page.evaluate(() => RR.save().gems);
+      await play(page, 15);
+      await winLevel(page);
+      await page.waitForTimeout(300);
+      const r = await page.evaluate(() => ({ gems: RR.save().gems, run: RR.G.run.gems }));
+      assert.equal(r.run, 0);
+      assert.equal(r.gems, gems);
+    },
+  },
+  {
+    name: 'relics drop as rarely as in The Depths, and not at all below the first tier',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 100);
+      const r = await page.evaluate(() => {
+        const at = n => { RR.G.world = advWorld(n); RR.G.tier = advTier(n); return ['boss', 'elite', 'hoarder'].map(relicChance); };
+        return { low: at(3), high: at(90) };
+      });
+      assert.deepEqual(r.low, [0, 0, 0]);
+      assert.deepEqual(r.high, [0.15, 0.04, 0.3]);
+    },
+  },
+  {
+    name: 'Continue keeps the time already spent on the clock',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 15);
+      await play(page, 16);
+      await page.evaluate(() => { RR.G.player.invuln = 9999; RR.G.adv.t = 20; });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => { writeRun(RR.G.run); RR.G.state = 'menu'; RR.UI.hud(false); RR.UI.title(); });
+      await page.click('[data-a="continue"]');
+      await page.waitForFunction(() => RR.G.state === 'play' && RR.G.adv);
+      const t = await page.evaluate(() => RR.G.adv.t);
+      assert.ok(t >= 20, `the clock started over at ${t}`);
+    },
+  },
+  {
+    name: 'a win counts for the Adventure quests and the achievement, and chimes once per star',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 0);
+      await page.evaluate(() => {
+        refreshQuests();
+        const Q = RR.save().quests;
+        Q.daily = [makeQuest(DAILY_QUESTS.find(d => d.id === 'adv')), makeQuest(DAILY_QUESTS.find(d => d.id === 'advnew'))];
+        Q.weekly = [makeQuest(WEEKLY_QUESTS.find(d => d.id === 'advstars'), true)];
+        window.played = [];
+        const play = Sound.play.bind(Sound);
+        Sound.play = name => { window.played.push(name); play(name); };
+      });
+      await play(page, 1);
+      await winLevel(page);
+      const r = await page.evaluate(() => {
+        const Q = RR.save().quests;
+        return {
+          daily: Q.daily.map(q => q.have), weekly: Q.weekly[0].have,
+          ach: ACH_BY_ID.adventurer.stat(), texts: Q.daily.map(q => questText(q, false)),
+          stars: window.played.filter(n => /^star\d$/.test(n)),
+        };
+      });
+      assert.deepEqual(r.daily, [1, 1]);
+      assert.equal(r.weekly, 3);
+      assert.equal(r.ach, 1);
+      assert.deepEqual(r.stars, ['star1', 'star2', 'star3']);
+      assert.match(r.texts[0], /Adventure/);
+    },
+  },
+  {
+    name: 'the pause menu names the level, not a world',
+    size: SIZES.phone,
+    async run(page) {
+      await setup(page, 3);
+      await play(page, 4);
+      await page.evaluate(() => pauseGame());
+      const facts = await page.textContent('.pause-panel .facts');
+      assert.match(facts, /4\s*Level/);
+      assert.doesNotMatch(facts, /World/);
+    },
+  },
 ];

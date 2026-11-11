@@ -9,7 +9,10 @@
 // not follow the player's power: permanent Mastery only counts up to a cap that grows with the level
 // (advMasteryCap), so a strong save can't flatten the map, and gold buys boosters before a level.
 // Stars (1-3) go by how few hits you took; stars open the chests of an episode. Winning levels in a
-// row (the win streak) hands out free boosters.
+// row (the win streak) hands out free boosters. Only new levels count for the streak: replaying an
+// old one neither grows nor breaks it, so it can't be pumped up on easy levels.
+// Loot is kept lean, as the levels are short: relics drop as rarely as in The Depths (and not below
+// the first tier), and a boss pays its gem only the first time.
 
 const ADV_EPISODE = 15;               // levels per episode, the last one a boss
 const ADV_TIER_PER_LEVEL = 0.15;      // difficulty tiers (TIER in config.js) per level
@@ -65,6 +68,8 @@ const advMasteryCap = n => 10 + Math.floor(1.5 * n);
 // Mastery as it counts in this run: capped in Adventure (perks.js baseStats).
 const runMastery = id => (G.run && G.run.adv ? Math.min(masteryLevel(id), advMasteryCap(G.run.adv)) : masteryLevel(id));
 const advPrice = (b, n) => Math.round((b.price * TIER.gold ** advTier(n)) / 5) * 5 || 5;
+// A level not won yet: only these count for the win streak and pay first-win rewards.
+const advIsNew = n => n > advSave().best;
 const advGifts = () => ADV_STREAK_GIFTS.filter(g => advSave().streak >= g.at).map(g => g.id);
 
 // ---------- the levels ----------
@@ -173,7 +178,9 @@ function advRunFields(n, boosters) {
 // A room of a level starts (beginRoom): its goal's timers and extras.
 function advBeginRoom() {
   const L = G.world.level, p = G.player;
-  G.adv = { hits: 0, t: 0, waveT: 2.5, hoarderDue: L.goal === 'hoarder' ? 1.2 : 0, hoarder: null, failed: null };
+  // (a level continued from the title screen keeps the time already spent in this room)
+  const t = G.run.advRoom === G.roomIdx ? G.run.advT || 0 : 0;
+  G.adv = { hits: 0, t, waveT: 2.5, hoarderDue: L.goal === 'hoarder' ? 1.2 : 0, hoarder: null, failed: null };
   if (G.roomIdx === 1 && G.run.boosters.includes('shield')) {
     p.invuln = 8;
     FX.ring(p.x, p.y, 34, '#7fd8ff', 0.6, 5);
@@ -196,6 +203,8 @@ function advUpdate(dt, p) {
   if (p.roomHits > A.hits) { G.run.hits += p.roomHits - A.hits; A.hits = p.roomHits; }
   if (G.cleared || G.bossDead) return;
   A.t += dt;
+  G.run.advT = A.t;   // saved with the run (writeRun), for Continue
+  G.run.advRoom = G.roomIdx;
   if (L.goal === 'survive') {
     A.waveT -= dt;
     if (A.waveT <= 0) {
@@ -274,12 +283,15 @@ function advWin() {
   const before = advStars(L.n), first = L.n > a.best;
   a.stars[L.n] = Math.max(before, stars);
   a.best = Math.max(a.best, L.n);
-  a.streak++;
+  if (first) a.streak++;
   // the first win of a level pays a little gold, a boss level a few gems too
   const bonus = first ? Math.round(25 * TIER.gold ** L.tier * (1 + G.player.s.gold)) : 0;
   run.gold += bonus;
   if (first && L.goal === 'boss') run.gems += 3 + Math.min(7, Math.floor(L.ep / 2));
   if (L.goal === 'boss') track('win');
+  track('advwin');
+  track('advstar', stars);
+  if (first) track('advnew');
   const sum = endRun(true);
   Object.assign(sum, { adv: L, stars, before, first, bonus, streak: a.streak, chest: advChestReady(L.ep) });
   Sound.stopMusic();
@@ -293,8 +305,8 @@ function advLost() {
   G.state = 'over';
   const a = advSave(), L = G.world.level;
   const why = G.adv && G.adv.failed ? G.adv.failed.text : `You fell. ${advLeftText()}`;
-  const lostStreak = a.streak;
-  a.streak = 0;
+  const lostStreak = advIsNew(L.n) ? a.streak : 0;
+  if (lostStreak) a.streak = 0;
   const sum = endRun(false);
   Object.assign(sum, { adv: L, why, lostStreak });
   Sound.stopMusic();
