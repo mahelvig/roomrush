@@ -422,6 +422,9 @@ function playerDown(p) {
   } else if (run.metaRevive) {
     run.metaRevive = false;
     revivePlayer(p, 0.5, 'Second Chance!');
+  } else if (run.boostLife) {   // the Extra Life booster of Adventure
+    run.boostLife = false;
+    revivePlayer(p, 0.6, 'Extra Life!');
   } else {
     p.hp = 0;
     p.dead = true;

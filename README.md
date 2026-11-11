@@ -9,6 +9,12 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
   room 20 is a boss. The Iron Citadel is different: you climb tall fortress rooms past towers
   that run on power cores, and the boss is an escort.
 - The Depths: endless worlds, each harder than the last.
+- Adventure: a map of numbered levels without end, in episodes of 15 with a boss at the end of each.
+  Every level is short (1-3 rooms) and has its own goal: clear the rooms, survive, beat the clock,
+  catch the Hoarder, take few hits or hunt an elite. Each episode brings in a new goal or modifier.
+  Difficulty rises like a saw (every fifth level is hard), and Mastery only counts up to a cap that
+  grows with the level. 1-3 stars by how few hits you took open episode chests; buy boosters with
+  gold before a level, and win levels in a row for free ones. Losing only costs that one level.
 - Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
   play. Every relic that drops rolls its own random affixes (stronger in harder worlds): keep
   the best in your bag, level them up and salvage the rest. Level up both perks of a found recipe in a run and they merge into an evolution
@@ -37,6 +43,7 @@ music are made with Web Audio (`js/audio.js`).
 | `js/relics.js` | Relics, their drops and effects, and perk evolutions |
 | `js/items.js` | The relic bag: random affixes, wearing, levelling up, salvaging, old saves |
 | `js/loot.js` | Materials, upgrading relics with them, the Hoarder, how loot looks and sounds |
+| `js/adventure.js` | Adventure: levels built from their number, goals, stars, boosters, win streak, chests |
 | `js/game.js` | Rooms, shots, pickups, camera, drawing the game |
 | `js/enemies.js`, `js/bosses.js` | Enemy behaviour and boss attacks |
 | `js/fortress.js` | The Iron Citadel: fortress rooms, towers, cores, the escort boss |

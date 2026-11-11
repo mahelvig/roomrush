@@ -771,3 +771,72 @@ body.rotate #rotate { display: flex; }
   animation: rot 1.8s ease-in-out infinite;
 }
 @keyframes rot { 0%, 25% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0); } }
+
+/* ---------- Adventure (adventure.js) ---------- */
+.st {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: rgba(0, 0, 0, .45);
+  clip-path: polygon(50% 2%, 63% 36%, 99% 38%, 71% 60%, 81% 96%, 50% 75%, 19% 96%, 29% 60%, 1% 38%, 37% 36%);
+  vertical-align: -.12em;
+}
+.st.on { background: linear-gradient(#ffe384, #f0a81c); }
+.st.big { width: 2.4em; height: 2.4em; }
+.amt .st { margin-right: .2em; }
+.adv-btn { position: relative; font-size: 1.25em; }
+.adv-btn small { font-family: var(--body, inherit); font-size: .62em; opacity: .8; margin-left: .3em; }
+.adv-streak { color: #7be05a; }
+.adv-map { display: flex; flex-direction: column; gap: 1.2em; padding-bottom: 2em; }
+.adv-ep-head { padding: .6em .85em; display: flex; flex-direction: column; gap: .2em; }
+.adv-ep-head b { font-family: var(--title); font-weight: normal; font-size: 1.25em; }
+.adv-new { color: #7be05a; font-size: .85em; }
+.adv-have { color: #ffcf3f; font-size: .9em; }
+.adv-chests { display: flex; gap: .5em; flex-wrap: wrap; margin-top: .2em; }
+.adv-chest.done { color: var(--muted); font-size: .8em; padding: .3em 0; }
+.adv-ep.locked .adv-ep-head { opacity: .6; }
+.adv-path { display: flex; flex-direction: column; align-items: center; gap: .55em; padding: .6em 0; }
+.adv-node {
+  position: relative;
+  width: 3.6em;
+  height: 3.6em;
+  border-radius: 50%;
+  transform: translateX(calc(var(--x) * 1em));
+  border: .18em solid var(--line);
+  background: radial-gradient(circle at 50% 35%, #8f7bff, #4d36b8);
+  box-shadow: 0 .25em 0 var(--line), inset 0 .14em 0 rgba(255, 255, 255, .35);
+  color: #fff;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.adv-node b { font-family: var(--title); font-weight: normal; font-size: 1.3em; line-height: 1; text-shadow: 0 .08em 0 var(--line); }
+.adv-node small { font-size: .55em; color: #fff; opacity: .85; }
+.adv-node .adv-stars { position: absolute; bottom: -.55em; font-size: .8em; white-space: nowrap; }
+.adv-node.done { background: radial-gradient(circle at 50% 35%, #86e886, #2f8f3e); }
+.adv-node.now { background: radial-gradient(circle at 50% 35%, #ffe384, #f0a81c); color: #4a2600; animation: advPulse 1.2s ease-in-out infinite; }
+.adv-node.now b { text-shadow: none; }
+.adv-node.now small { color: #4a2600; }
+.adv-node.hard { box-shadow: 0 .25em 0 var(--line), inset 0 0 0 .2em #ff5a6e; }
+.adv-node.boss { width: 4.4em; height: 4.4em; }
+.adv-node.boss::after { content: 'BOSS'; position: absolute; top: -.75em; font-family: var(--title); font-size: .7em; color: #ff8e8e; text-shadow: 0 .1em 0 var(--line); }
+.adv-node.locked { background: #3a3160; color: var(--muted); filter: grayscale(.6); cursor: default; }
+.adv-node:active:not(:disabled) { transform: translateX(calc(var(--x) * 1em)) translateY(.12em); }
+@keyframes advPulse { 50% { box-shadow: 0 .25em 0 var(--line), 0 0 0 .35em rgba(255, 207, 63, .45); } }
+.adv-goal { padding: .9em 1em; display: flex; flex-direction: column; align-items: center; gap: .3em; text-align: center; }
+.adv-goal.hard { box-shadow: 0 .3em 0 var(--line), inset 0 0 0 .2em #ff5a6e; }
+.adv-goal b { font-family: var(--title); font-weight: normal; font-size: 1.7em; color: #ffcf3f; }
+.adv-goal span, .adv-goal small { color: var(--muted); }
+.adv-goal em { color: #ff8e8e; font-style: normal; }
+.adv-goal .adv-mod { color: #c38eff; }
+.adv-best { display: flex; gap: .3em; margin: .2em 0; }
+.adv-h { margin: .2em 0 -.3em; font-size: 1.15em; }
+.adv-boost.on { box-shadow: 0 .3em 0 var(--line), inset 0 0 0 .18em #7be05a; }
+.adv-won { display: flex; justify-content: center; gap: .4em; }
+.adv-won .st { animation: pop .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.adv-won .st.big { width: 3.2em; height: 3.2em; }
+.adv-why { color: #ffcf3f; font-family: var(--title); font-size: 1.2em; margin: 0; }
+.hud-world.urgent { color: #ff6b7a; }
