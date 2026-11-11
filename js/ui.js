@@ -450,6 +450,7 @@ const UI = {
         <small>${advStarText(L)}</small>
         ${masteryTop > advMasteryCap(n) ? `<small>Mastery counts up to level ${advMasteryCap(n)} here</small>` : ''}
       </div>
+      ${!advIsNew(n) ? '<p class="sub">A replay: it won\'t grow or break your win streak</p>' : ''}
       ${a.streak ? `<p class="sub adv-streak">Win streak: ${a.streak}${gifts.length ? ' · free boosters below' : ` · win ${ADV_STREAK_GIFTS[0].at - a.streak} more for a free booster`}</p>` : ''}
       <h3 class="adv-h">Boosters</h3>
       <div class="list">${boosters}</div>
@@ -476,7 +477,8 @@ const UI = {
           <p class="sub">${sum.stars > sum.before && sum.before ? 'New best!' : sum.stars < 3 ? advStarText(L) : 'Perfect!'}${sum.bonus ? ` · first win +${fmt(sum.bonus)} gold` : ''}</p>
           ${facts}
           ${lootSummary(sum)}
-          ${sum.streak >= 2 ? `<p class="unlock">Win streak <b>${sum.streak}</b>: the next level starts with ${advGifts().map(id => ADV_BOOSTER_BY_ID[id].name).join(', ')}</p>`
+          ${!sum.first ? '<p class="sub">Replays don\'t count for the win streak</p>'
+            : sum.streak >= 2 ? `<p class="unlock">Win streak <b>${sum.streak}</b>: the next level starts with ${advGifts().map(id => ADV_BOOSTER_BY_ID[id].name).join(', ')}</p>`
             : `<p class="unlock">Win one more for a free <b>${ADV_BOOSTER_BY_ID[ADV_STREAK_GIFTS[0].id].name}</b></p>`}
           ${sum.chest ? '<p class="unlock">A chest is ready to open on the map!</p>' : ''}
           <button class="btn big green" data-a="advLevel" data-n="${next}">Level ${next}</button>
@@ -964,7 +966,7 @@ const ACTIONS = {
       return;
     }
     const run = loadRun();
-    if (run) { save.gold += run.gold || 0; save.gems += run.gems || 0; if (run.adv) advSave().streak = 0; writeSave(); }
+    if (run) { save.gold += run.gold || 0; save.gems += run.gems || 0; if (run.adv && advIsNew(run.adv)) advSave().streak = 0; writeSave(); }
     clearRun();
     UI.title();
   },

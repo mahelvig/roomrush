@@ -747,7 +747,7 @@ function killEnemy(e) {
       // a chance of one gem, better in harder worlds and on higher tiers (gem budget: quests.js)
       if (!e.noGems && Math.random() < Math.min(0.5, 0.15 + 0.05 * lootLevel())) dropPickup('gem', e.x, e.y, 1);
     } else if (!e.boss && Math.random() < 0.025) dropPickup('heart', e.x, e.y, 0.12);
-    if (e.boss) dropPickup('gem', e.x, e.y, e.gems);
+    if (e.boss && e.gems) dropPickup('gem', e.x, e.y, e.gems);
     if ((e.elite || e.boss) && !e.noGems) maybeDropRelic(e.boss ? 'boss' : 'elite', e.x, e.y);
     if (e.def.ai === 'hoarder') hoarderLoot(e);
     else if (!e.def.harmless) dropMaterials(e);

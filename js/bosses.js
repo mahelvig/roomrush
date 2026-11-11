@@ -13,7 +13,7 @@ function spawnBoss(key) {
     state: 'intro', t: 1.4, boss: true, flying: !!def.flying, lastMove: null, phase2: false, phase3: false, m: null,
     phaseIdx: 0, shielded: false, crystals: [], fightT: 0, fury: 0, sinceSig: 0,
     // in The Depths the gems come from the milestones every fifth depth instead
-    gems: G.world.depth || G.world.adv ? 1 : def.gems * (firstOnTier ? 2 : 1) + Math.min(3, Math.floor(G.tier / 2)),
+    gems: G.world.adv ? (advIsNew(G.world.adv) ? 1 : 0) : G.world.depth ? 1 : def.gems * (firstOnTier ? 2 : 1) + Math.min(3, Math.floor(G.tier / 2)),
   });
   e.spawnMax = 1.2;
   if (G.world.bossAffix) {   // bosses in The Depths bring an affix along

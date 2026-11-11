@@ -334,7 +334,7 @@ function victory() {
 }
 
 function quitRun() {
-  if (G.world.adv) advSave().streak = 0;   // giving up a level ends the win streak
+  if (G.world.adv && advIsNew(G.world.adv)) advSave().streak = 0;   // giving up a new level ends the win streak
   G.state = 'over';
   endRun(false);
   save.stats.deaths--;
