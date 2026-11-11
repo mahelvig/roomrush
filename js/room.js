@@ -93,8 +93,8 @@ function generateRoom(world, idx, type) {
   room.fort = null;
   if (world.fort) { generateFortRoom(world, idx, type); return; }
   setRoomRows(BASE_ROWS);
-  // a depth looks the same for everyone: its rooms come from its number
-  room.seed = world.depth ? world.depth * 1000 + idx : (Math.random() * 1e9) | 0;
+  // a depth or an Adventure level looks the same for everyone: its rooms come from its number
+  room.seed = world.adv ? 5e6 + world.adv * 100 + idx : world.depth ? world.depth * 1000 + idx : (Math.random() * 1e9) | 0;
   room.type = type;
   const rng = makeRng(room.seed);
   const need = biggestWalker(world, idx, type);
@@ -184,7 +184,7 @@ function generateRoom(world, idx, type) {
 function biggestWalker(world, idx, type) {
   if (type === 'boss') return 0;
   const keys = enemyPool(world, idx).slice();
-  if (world.depth && (type === 'elite' || (world.mod && world.mod.id === 'swarm'))) keys.push(...world.elites);
+  if ((world.depth || world.adv) && (type === 'elite' || (world.mod && world.mod.id === 'swarm'))) keys.push(...world.elites);
   else if (type === 'elite') keys.push(world.elites[clamp(idx / 5 - 1, 0, world.elites.length - 1)]);
   const r = Math.max(0, ...keys.map(k => ENEMIES[k]).filter(d => !d.flying).map(d => d.r));
   return r ? navClassOf(r) : 0;

@@ -94,6 +94,7 @@ const HOARDER_CHANCE = 0.08, HOARDER_TIME = 12;
 function planHoarder() {
   G.hoarderT = 0;
   if (G.roomType !== 'normal' || G.world.fort || G.roomIdx < 2) return;
+  if (G.world.adv && G.world.level.goal === 'hoarder') return;   // that level brings its own
   if (Math.random() < HOARDER_CHANCE) G.hoarderT = rand(1.5, 4);
 }
 
@@ -139,6 +140,7 @@ AI.hoarder = (e, dt, p) => {
     FX.text(e.x, e.y - 30, 'Got away!', '#ffcf3f', 12, { life: 1.2 });
     Sound.play('blink');
     e.dead = true;   // gone, not killed: no loot
+    e.escaped = true;
     return;
   }
   e.t -= dt;

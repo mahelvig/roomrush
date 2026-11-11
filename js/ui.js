@@ -138,7 +138,9 @@ const UI = {
     if (!G.run) return;
     const w = G.world;
     const where = w.depth ? `Depth ${w.depth} · ${w.name}` : G.tier ? `${w.short} · ${tierName(G.tier)}` : w.name;
-    this.hudEl.querySelector('.hud-world').textContent = `${where} · ${G.roomIdx}/${roomsIn(w)}`;
+    this.advText = null;
+    if (w.adv) this.advTimer();
+    else this.hudEl.querySelector('.hud-world').textContent = `${where} · ${G.roomIdx}/${roomsIn(w)}`;
     let dots = '';
     for (let i = 1; i <= roomsIn(w); i++) {
       const type = roomTypeOf(i);
@@ -147,6 +149,21 @@ const UI = {
     }
     this.hudEl.querySelector('.hud-rooms').innerHTML = dots;
     this.updateGold();
+  },
+  // Adventure: the level and how its goal is going (time left, hits taken), in the HUD.
+  advTimer() {
+    const L = G.world.level, A = G.adv;
+    if (!L) return;
+    let goal = `${ADV_GOALS[L.goal].short} · ${G.roomIdx}/${roomsIn(G.world)}`;
+    if (A && !G.cleared && L.goal === 'survive') goal = `Survive ${fmtTime(Math.ceil(Math.max(0, L.value - A.t)))}`;
+    else if (A && !G.cleared && L.goal === 'timed') goal = `Clock ${Math.ceil(Math.max(0, L.value - A.t))} s · ${G.roomIdx}/${roomsIn(G.world)}`;
+    else if (L.goal === 'careful') goal = `Hits ${G.run.hits}/${L.value} · ${G.roomIdx}/${roomsIn(G.world)}`;
+    const text = `Level ${L.n} · ${goal}`;
+    if (text === this.advText) return;
+    this.advText = text;
+    const el = this.hudEl.querySelector('.hud-world');
+    el.textContent = text;
+    el.classList.toggle('urgent', !!A && !G.cleared && ((L.goal === 'survive' || L.goal === 'timed') && L.value - A.t < 6 || (L.goal === 'careful' && G.run.hits >= L.value)));
   },
   updateGold() {
     if (G.run) document.getElementById('hudGold').textContent = fmt(G.run.gold);
@@ -193,7 +210,7 @@ const UI = {
     Sound.playMusic('menu');
     const hero = HERO_BY_ID[save.hero];
     const run = loadRun();
-    const runWhere = run && (run.depth ? `Depth ${run.depth} · ${depthWorld(run.depth).name} · Room ${run.room}/${DEPTH_ROOMS}`
+    const runWhere = run && (run.adv ? `Adventure · Level ${run.adv} · Room ${run.room}/${advLevel(run.adv).rooms}` : run.depth ? `Depth ${run.depth} · ${depthWorld(run.depth).name} · Room ${run.room}/${DEPTH_ROOMS}`
       : WORLDS[run.world] && `${WORLDS[run.world].name}${run.tier ? ` · ${tierName(run.tier)}` : ''} · Room ${run.room}/${ROOMS_PER_WORLD}`);
     const cont = runWhere ? `
       <div class="continue panel pop">
@@ -217,6 +234,7 @@ const UI = {
       ${cont}
       <div class="menu">
         <button class="btn big green" data-a="worlds">Play</button>
+        <button class="btn gold adv-btn" data-a="adventure">Adventure <small>Level ${advSave().best + 1}</small>${advAnyChest() ? '<i class="badge">!</i>' : ''}</button>
         <div class="row">
           <button class="btn blue" data-a="heroes">Heroes</button>
           <button class="btn purple" data-a="upgrades">Upgrades</button>
@@ -357,6 +375,127 @@ const UI = {
       ${tabs}
       <div class="list">${body}</div>
     `, 'relics');
+  },
+
+  // ---------- Adventure (adventure.js) ----------
+
+  // The map: episodes of 15 levels, each a dot on a winding path with its stars.
+  adventure() {
+    const a = advSave(), cur = a.best + 1, last = advEpisodeOf(cur) + 1;
+    const stars = k => `<span class="adv-stars">${[1, 2, 3].map(i => `<i class="st ${i <= k ? 'on' : ''}"></i>`).join('')}</span>`;
+    let html = '';
+    for (let ep = 1; ep <= last; ep++) {
+      const E = advEpisode(ep), open = advUnlocked((ep - 1) * ADV_EPISODE + 1);
+      const have = advEpisodeStars(ep);
+      const chests = ADV_CHESTS.map((c, i) => advChestOpen(ep, i) ? `<span class="adv-chest done">Chest ${i + 1} opened</span>`
+        : `<button class="btn small gold adv-chest" data-a="advChest" data-ep="${ep}" data-i="${i}" ${have >= c.stars ? '' : 'disabled'}>Chest <i class="st on"></i>${c.stars}</button>`).join('');
+      let nodes = '';
+      for (let i = 1; i <= ADV_EPISODE; i++) {
+        const n = (ep - 1) * ADV_EPISODE + i, L = advLevel(n);
+        const state = n <= a.best ? 'done' : n === cur ? 'now' : 'locked';
+        const x = Math.round(Math.sin(n * 0.85) * 5.5 * 10) / 10;
+        nodes += `
+          <button class="adv-node ${state} ${L.hard ? 'hard' : ''} ${L.goal === 'boss' ? 'boss' : ''}" style="--x:${x}" data-a="advLevel" data-n="${n}" ${state === 'locked' ? 'disabled' : ''} aria-label="Level ${n}">
+            <b>${n}</b>${state === 'done' ? stars(advStars(n)) : `<small>${ADV_GOALS[L.goal].short}</small>`}
+          </button>`;
+      }
+      html += `
+        <div class="adv-ep ${open ? '' : 'locked'}">
+          <div class="adv-ep-head panel">
+            <b>Episode ${ep}: ${E.name}</b>
+            ${E.news.length ? `<span class="adv-new">New: ${E.news.join(' · ')}</span>` : ''}
+            <span class="adv-have"><i class="st on"></i> ${have}/${ADV_EPISODE * 3}</span>
+            <div class="adv-chests">${chests}</div>
+          </div>
+          <div class="adv-path">${nodes}</div>
+        </div>`;
+    }
+    this.open(`
+      <header><button class="round" data-a="title" aria-label="Back">${SVG.back}</button><h2>Adventure</h2>
+        <div class="pill"><span class="amt"><i class="st on"></i>${advTotalStars()}</span></div><div class="pill">${coinTag(save.gold)}</div></header>
+      ${a.streak >= 2 ? `<p class="sub adv-streak">Win streak ${a.streak}: free ${advGifts().map(id => ADV_BOOSTER_BY_ID[id].name).join(', ')}</p>` : ''}
+      <div class="adv-map">${html}</div>
+    `, 'adventure');
+    const now = this.root.querySelector('.adv-node.now');
+    if (now && now.scrollIntoView) now.scrollIntoView({ block: 'center' });
+  },
+
+  // One level before it starts: the goal, the stars, the win streak and the boosters to buy.
+  advLevel(n) {
+    if (!advUnlocked(n)) return this.adventure();
+    if (this.advN !== n) { this.advN = n; this.advSel = []; }
+    const L = advLevel(n), a = advSave(), gifts = advGifts();
+    const sel = this.advSel.filter(id => !gifts.includes(id));
+    const total = sel.reduce((s, id) => s + advPrice(ADV_BOOSTER_BY_ID[id], n), 0);
+    const best = advStars(n);
+    const boosters = ADV_BOOSTERS.map(b => {
+      const free = gifts.includes(b.id), on = free || sel.includes(b.id), price = advPrice(b, n);
+      return `
+        <div class="upg panel adv-boost ${on ? 'on' : ''}">
+          <canvas class="icon" data-icon="${b.icon}"></canvas>
+          <div class="u-info"><b>${b.name}</b><span>${b.desc}</span></div>
+          ${free ? '<span class="maxed">Free</span>'
+            : `<button class="btn small ${on ? 'green' : 'gold'}" data-a="advBoost" data-id="${b.id}" ${!on && save.gold < total + price ? 'disabled' : ''}>${on ? 'Added' : coinTag(price)}</button>`}
+        </div>`;
+    }).join('');
+    const masteryTop = Math.max(...MASTERY.map(m => masteryLevel(m.id)));
+    this.open(`
+      <header><button class="round" data-a="adventure" aria-label="Back">${SVG.back}</button><h2>Level ${n}</h2><div class="pill">${coinTag(save.gold)}</div></header>
+      <div class="panel adv-goal ${L.hard ? 'hard' : ''} ${L.goal === 'boss' ? 'boss' : ''}">
+        <span class="adv-ep-name">Episode ${L.ep}: ${L.episode.name}${L.hard ? ' · <em>Hard level</em>' : ''}</span>
+        <b>${ADV_GOALS[L.goal].name}</b>
+        <span>${advGoalText(L)}</span>
+        ${L.mod ? `<span class="adv-mod">${L.mod.name}: ${L.mod.desc}</span>` : ''}
+        <span class="adv-best">${[1, 2, 3].map(i => `<i class="st big ${i <= best ? 'on' : ''}"></i>`).join('')}</span>
+        <small>${advStarText(L)}</small>
+        ${masteryTop > advMasteryCap(n) ? `<small>Mastery counts up to level ${advMasteryCap(n)} here</small>` : ''}
+      </div>
+      ${a.streak ? `<p class="sub adv-streak">Win streak: ${a.streak}${gifts.length ? ' · free boosters below' : ` · win ${ADV_STREAK_GIFTS[0].at - a.streak} more for a free booster`}</p>` : ''}
+      <h3 class="adv-h">Boosters</h3>
+      <div class="list">${boosters}</div>
+      <button class="btn big green" data-a="advPlay" data-n="${n}" ${save.gold < total ? 'disabled' : ''}>Play${total ? ` ${coinTag(total)}` : ''}</button>
+    `, 'adv-level');
+  },
+
+  advResult(sum) {
+    const L = sum.adv, won = !sum.why;
+    const facts = `
+      <div class="facts">
+        <span><b>${coinTag(sum.gold)}</b>Gold</span>
+        <span><b>${gemTag(sum.gems)}</b>Gems</span>
+        <span><b>${sum.kills}</b>Kills</span>
+        <span><b>${fmtTime(sum.time)}</b>Time</span>
+      </div>`;
+    const map = '<button class="btn blue" data-a="adventure">Map</button>';
+    if (won) {
+      const next = L.n + 1;
+      this.open(`
+        <div class="panel result win">
+          <h2>Level ${L.n} done!</h2>
+          <div class="adv-won">${[1, 2, 3].map(i => `<i class="st big ${i <= sum.stars ? 'on' : ''}" style="animation-delay:${0.15 + i * 0.25}s"></i>`).join('')}</div>
+          <p class="sub">${sum.stars > sum.before && sum.before ? 'New best!' : sum.stars < 3 ? advStarText(L) : 'Perfect!'}${sum.bonus ? ` · first win +${fmt(sum.bonus)} gold` : ''}</p>
+          ${facts}
+          ${lootSummary(sum)}
+          ${sum.streak >= 2 ? `<p class="unlock">Win streak <b>${sum.streak}</b>: the next level starts with ${advGifts().map(id => ADV_BOOSTER_BY_ID[id].name).join(', ')}</p>`
+            : `<p class="unlock">Win one more for a free <b>${ADV_BOOSTER_BY_ID[ADV_STREAK_GIFTS[0].id].name}</b></p>`}
+          ${sum.chest ? '<p class="unlock">A chest is ready to open on the map!</p>' : ''}
+          <button class="btn big green" data-a="advLevel" data-n="${next}">Level ${next}</button>
+          <div class="row"><button class="btn purple" data-a="advLevel" data-n="${L.n}">Replay</button>${map}</div>
+        </div>
+      `, 'result-screen');
+    } else {
+      this.open(`
+        <div class="panel result lose">
+          <h2>Level ${L.n} lost</h2>
+          <p class="adv-why">${sum.why}</p>
+          ${sum.lostStreak >= 2 ? `<p class="sub">Your win streak of ${sum.lostStreak} is gone.</p>` : ''}
+          ${facts}
+          ${lootSummary(sum)}
+          <button class="btn big green" data-a="advLevel" data-n="${L.n}">Try again</button>
+          <div class="row"><button class="btn purple" data-a="upgrades">Upgrades</button>${map}</div>
+        </div>
+      `, 'result-screen');
+    }
   },
 
   // Where to start in The Depths: depth 1 or a checkpoint every fifth depth.
@@ -721,11 +860,36 @@ const ACTIONS = {
     startRun(+d.w, null, pickedTier(w));
   },
   again: () => {
+    if (G.run && G.run.adv) { UI.advLevel(G.run.adv); return; }
     goFullscreen();
     if (G.run && G.run.startDepth) startRun(0, null, 0, G.run.startDepth);
     else startRun(G.worldIdx, null, G.tier);
   },
   startDepth: () => { goFullscreen(); startRun(0, null, 0, UI.pickedDepth()); },
+  adventure: () => UI.adventure(),
+  advLevel: d => UI.advLevel(+d.n),
+  advBoost: d => {
+    const i = UI.advSel.indexOf(d.id);
+    if (i >= 0) UI.advSel.splice(i, 1); else UI.advSel.push(d.id);
+    const y = UI.root.scrollTop;
+    UI.advLevel(UI.advN);
+    UI.root.scrollTop = y;
+  },
+  advPlay: d => {
+    const n = +d.n, gifts = advGifts();
+    goFullscreen();
+    if (!startAdventure(n, (UI.advSel || []).filter(id => !gifts.includes(id)))) UI.advLevel(n);
+    UI.advSel = [];
+  },
+  advChest: d => {
+    const got = advOpenChest(+d.ep, +d.i);
+    if (!got) return;
+    Sound.play('gem');
+    const y = UI.root.scrollTop;
+    UI.adventure();
+    UI.root.scrollTop = y;
+    UI.toast(`Chest: +${got.gems} gems, +${got.shards} Star Shards, +${got.dust} Relic Dust`);
+  },
   depthPick: d => {
     const starts = depthStarts();
     save.depthPick = starts[clamp(starts.indexOf(UI.pickedDepth()) + +d.d, 0, starts.length - 1)];
@@ -800,7 +964,7 @@ const ACTIONS = {
       return;
     }
     const run = loadRun();
-    if (run) { save.gold += run.gold || 0; save.gems += run.gems || 0; writeSave(); }
+    if (run) { save.gold += run.gold || 0; save.gems += run.gems || 0; if (run.adv) advSave().streak = 0; writeSave(); }
     clearRun();
     UI.title();
   },

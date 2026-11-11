@@ -24,6 +24,7 @@ function defaultSave() {
     depthBest: 0,          // deepest depth reached in The Depths
     depthCleared: 0,       // deepest depth cleared (for the gem bonus every fifth depth)
     depthPick: 0,          // depth picked on the world screen (0 = the deepest start)
+    adv: { best: 0, stars: {}, streak: 0, chests: {}, seenEp: 0 },   // Adventure (adventure.js)
     relics: {},            // relic id -> true: every kind of relic ever found (the codex)
     items: [],             // the bag: relics found, each { uid, id, L, ilvl, aff } (items.js)
     nextUid: 0,

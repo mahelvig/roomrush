@@ -11,18 +11,28 @@ const G = {
 
 // ---------- run flow ----------
 
-// depth > 0 starts a run in The Depths (depths.js) at that depth instead of a world.
-function startRun(worldIdx, resume, tier = 0, depth = 0) {
+// depth > 0 starts a run in The Depths (depths.js) at that depth instead of a world;
+// adv = { n, boosters } plays level n of Adventure (adventure.js).
+function startRun(worldIdx, resume, tier = 0, depth = 0, adv = null) {
   const hero = HERO_BY_ID[resume ? resume.hero : save.hero] || HEROES[0];
   depth = resume ? resume.depth || 0 : depth;
-  G.worldIdx = depth ? DEPTH_WORLDS.length - 1 : worldIdx;
-  G.world = depth ? depthWorld(depth) : WORLDS[worldIdx];
-  G.tier = depth || (resume ? resume.tier || 0 : tier);
+  const advN = resume ? resume.adv || 0 : adv ? adv.n : 0;
+  if (advN) {
+    G.world = advWorld(advN);
+    G.worldIdx = DEPTH_WORLDS.indexOf(G.world.level.episode.foe);
+    G.tier = G.world.level.tier;
+  } else {
+    G.worldIdx = depth ? DEPTH_WORLDS.length - 1 : worldIdx;
+    G.world = depth ? depthWorld(depth) : WORLDS[worldIdx];
+    G.tier = depth || (resume ? resume.tier || 0 : tier);
+  }
+  G.adv = null;
   G.run = resume || {
     world: worldIdx, tier: G.tier, depth, startDepth: depth, hero: hero.id, room: 1, perks: {}, gold: 0, gems: 0, kills: 0, damage: 0, time: 0,
     livesUsed: 0, metaRevive: upgradeLevel('revive') > 0, rerolls: upgradeLevel('reroll'), relics: wornRelics(),
     // starting deeper than depth 1 you start without perks, but with three free picks
     startPicks: upgradeLevel('start') + (depth > 1 ? 3 : 0), hp: null,
+    ...(advN ? advRunFields(advN, adv.boosters || []) : {}),
   };
   if (depth) { save.depthBest = Math.max(save.depthBest || 0, depth); }
   G.player = createPlayer(hero, G.run.perks, G.run.relics || []);
@@ -40,9 +50,14 @@ function startRun(worldIdx, resume, tier = 0, depth = 0) {
 
 const roomsIn = w => w.rooms || ROOMS_PER_WORLD;
 // How far into a world the room is for difficulty: the 10 rooms of a depth ramp up like 20.
-const roomLevel = () => (G.world.depth ? G.roomIdx * 2 : G.roomIdx);
+// In Adventure each level says how far in its rooms are (roomLv).
+const roomLevel = () => (G.world.adv ? G.world.roomLv + G.roomIdx - 1 : G.world.depth ? G.roomIdx * 2 : G.roomIdx);
 
 function roomTypeOf(idx) {
+  if (G.world.adv) {   // only the last room of a level is special: the boss or the elite of the goal
+    const goal = G.world.level.goal;
+    return idx < roomsIn(G.world) ? 'normal' : goal === 'boss' ? 'boss' : goal === 'elite' ? 'elite' : 'normal';
+  }
   return idx === roomsIn(G.world) ? 'boss' : idx % 5 === 0 ? 'elite' : 'normal';
 }
 
@@ -70,7 +85,7 @@ function enterRoom(idx) {
   G.run.hp = p.hp;
   G.run.perks = p.perks;
   writeRun(G.run);
-  if (!w.depth && idx > (save.best[w.id] || 0)) { save.best[w.id] = idx; writeSave(); }
+  if (!w.depth && !w.adv && idx > (save.best[w.id] || 0)) { save.best[w.id] = idx; writeSave(); }
   UI.updateHud();
   UI.bossBar(null);
   Sound.playMusic(G.roomType === 'boss' ? 'boss' : w.music);
@@ -99,13 +114,18 @@ function beginRoom() {
     UI.banner('Command Room', 'Break the three cores', 'elite');
   } else if (G.roomType === 'elite') {
     UI.banner('Elite Room', ENEMIES[G.enemies[0].type].name, 'elite');
+  } else if (w.adv) {
+    if (G.roomIdx > 1) UI.banner(`Room ${G.roomIdx}/${roomsIn(w)}`, '', '');   // (room 1: advBeginRoom)
   } else if (w.depth && G.roomIdx === 1) {
     UI.banner(`Depth ${w.depth}`, `${w.name} · ${w.mod.name}`, '');
   } else {
     UI.banner(`Room ${G.roomIdx}`, G.roomIdx === 1 ? w.name + (G.tier ? ` · ${tierName(G.tier)}` : '') : '', '');
   }
+  if (w.adv) advBeginRoom();   // the goal's timers, its banner and hint
   if (G.roomIdx === 1 && !save.seenHint) UI.hint(isTouch ? 'Drag anywhere to move. Stand still to shoot faster!' : 'Move with WASD or the arrow keys. Stand still to shoot faster!');
-  else if (w.fort && G.roomType === 'boss' && !save.seenEscortHint) {
+  else if (w.adv) {
+    // (the level's own hint)
+  } else if (w.fort && G.roomType === 'boss' && !save.seenEscortHint) {
     save.seenEscortHint = true;
     writeSave();
     UI.hint('Break the two cores by each gate to let the golem through. Stand next to it to repair it.');
@@ -126,10 +146,10 @@ function spawnRoomEnemies() {
   if (w.fort) { spawnFort(); return; }
   if (G.roomType === 'boss') { spawnBoss(w.boss); return; }
   const types = enemyPool(w, idx);
-  let budget = DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4;
+  let budget = (DIFFICULTY.budget + idx * DIFFICULTY.budgetPerRoom + G.worldIdx * 0.4) * (w.budgetMul || 1);
   let n = 0;
   if (G.roomType === 'elite') {
-    const key = w.depth ? pick(w.elites) : w.elites[clamp(idx / 5 - 1, 0, w.elites.length - 1)];
+    const key = w.depth || w.adv ? pick(w.elites) : w.elites[clamp(idx / 5 - 1, 0, w.elites.length - 1)];
     spawnEnemy(key, DOOR_X, ROOM_Y + 120, { spawnT: 0.9 });
     budget = 1.2 + idx * 0.1;
   } else if (worldMod('swarm')) {
@@ -183,7 +203,7 @@ function showPerkChoice(reason) {
 // Two cards (three with Lucky Coin after a room); an evolution that is ready takes the first place.
 function perkChoices(reason) {
   const p = G.player;
-  const minRank = reason === 'room' && G.roomType === 'elite' ? 1 : 0;
+  const minRank = reason === 'start' && G.run.epicPicks > 0 ? 2 : reason === 'room' && G.roomType === 'elite' ? 1 : 0;
   const n = reason === 'room' && p.s.threeCards ? 3 : 2;
   const evo = reason === 'room' ? readyEvolutions(p)[0] : null;
   const list = rollPerks(p, evo ? n - 1 : n, minRank);
@@ -194,6 +214,7 @@ function choosePerk(i) {
   const perk = G.choices[i];
   if (!perk || G.state !== 'perk') return;
   if (RARITY[perk.rarity].rank >= 2) track('epic');
+  if (G.perkReason === 'start' && G.run.epicPicks > 0) G.run.epicPicks--;   // the Lucky Start booster
   if (perk.evo) track('evolve');
   const p = G.player;
   p.perks[perk.id] = (p.perks[perk.id] || 0) + 1;
@@ -276,6 +297,7 @@ function endRun(won) {
 }
 
 function gameOver() {
+  if (G.world.adv) { advLost(); return; }
   G.state = 'over';
   const sum = endRun(false);
   Sound.stopMusic();
@@ -312,6 +334,7 @@ function victory() {
 }
 
 function quitRun() {
+  if (G.world.adv) advSave().streak = 0;   // giving up a level ends the win streak
   G.state = 'over';
   endRun(false);
   save.stats.deaths--;
@@ -361,6 +384,8 @@ function updateGame(dt) {
   if (worldMod('meteors') && !G.cleared && !G.bossDead) updateMeteorRain(dt, p);
   updateHelpers(p, dt);
   updateHoarderPlan(dt, p);
+  if (G.world.adv) advUpdate(dt, p);
+  if (G.state !== 'play') return;
   for (const e of G.enemies) updateEnemy(e, dt, p);
   separateEnemies();
   contactDamage(p);
@@ -390,10 +415,14 @@ function updateGame(dt) {
     if (G.bossDead) {
       G.bossDeadT += dt;
       if (G.bossDeadT > 0.5) G.cleared = true;
-      if (G.bossDeadT > 3.2 && !G.winShown) victory();
+      if (G.bossDeadT > 3.2 && !G.winShown) (G.world.adv ? advWin() : victory());
     }
-  } else if (!G.cleared && !room.fort && G.enemies.length === 0) {
+  } else if (!G.cleared && !room.fort && G.enemies.length === 0 && !advHoldsRoom()) {
     onRoomCleared();   // (a fortress room is done at its gate instead: fortReached)
+  } else if (G.cleared && G.world.adv && G.roomIdx >= roomsIn(G.world)) {
+    // the last room of a level: no perk, the level is won once the loot is in
+    G.clearT += dt;
+    if (G.clearT > 2.4 || (G.clearT > 1 && G.pickups.length === 0)) advWin();
   } else if (G.cleared && !G.perkShown) {
     G.clearT += dt;
     if (G.clearT > 1.8 || (G.clearT > 0.8 && G.pickups.length === 0)) showPerkChoice('room');
