@@ -14,7 +14,8 @@ A fast arcade dungeon run for phones, in the spirit of Archero and Vampire Survi
   catch the Hoarder, take few hits or hunt an elite. Each episode brings in a new goal or modifier.
   Difficulty rises like a saw (every fifth level is hard), and Mastery only counts up to a cap that
   grows with the level. 1-3 stars by how few hits you took open episode chests; buy boosters with
-  gold before a level, and win levels in a row for free ones. Losing only costs that one level.
+  gold before a level, and win new levels in a row for free ones. Losing only costs that one level.
+  Daily and weekly quests and the Adventurer achievement count Adventure wins and stars.
 - Relics instead of gear: found on the harder tiers, two worn per run, each changing how you
   play. Every relic that drops rolls its own random affixes (stronger in harder worlds): keep
   the best in your bag, level them up and salvage the rest. Level up both perks of a found recipe in a run and they merge into an evolution

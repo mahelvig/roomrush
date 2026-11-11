@@ -469,6 +469,8 @@ const UI = {
       </div>`;
     const map = '<button class="btn blue" data-a="adventure">Map</button>';
     if (won) {
+      // a chime for each star as it pops in (the delays match the stars' animation)
+      for (let i = 1; i <= sum.stars; i++) Sound.play('star' + i);
       const next = L.n + 1;
       this.open(`
         <div class="panel result win">
@@ -769,7 +771,7 @@ const UI = {
       <div class="panel pause-panel">
         <h2>Paused</h2>
         <div class="facts">
-          <span><b>${G.world.short}</b>World</span>
+          ${G.world.adv ? `<span><b>${G.world.adv}</b>Level</span>` : `<span><b>${G.world.short}</b>World</span>`}
           <span><b>${G.roomIdx}/${roomsIn(G.world)}</b>Room</span>
           <span><b>${fmt(run.gold)}</b>Gold</span>
           <span><b>${run.kills || 0}</b>Kills</span>

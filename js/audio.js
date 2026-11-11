@@ -177,6 +177,10 @@ const SFX = {
     [523, 784, 1047, 1319, 1568, 2093].forEach((f, i) => s.tone('triangle', f, f, 0.4, 0.08, 0.05 + i * 0.08));
     s.hiss(0.9, 0.06, 'highpass', 3000, 9000, 0.05);
   },
+  // the stars of an Adventure level, as they pop in one after the other (ui.js advResult)
+  star1: s => { s.tone('triangle', 1047, 1047, 0.25, 0.09, 0.4); s.hiss(0.2, 0.04, 'highpass', 4000, 8000, 0.4); },
+  star2: s => { s.tone('triangle', 1319, 1319, 0.28, 0.09, 0.65); s.hiss(0.2, 0.04, 'highpass', 4500, 9000, 0.65); },
+  star3: s => { [1568, 2093].forEach((f, i) => s.tone('triangle', f, f, 0.4, 0.09, 0.9 + i * 0.08)); s.hiss(0.4, 0.06, 'highpass', 5000, 10000, 0.9); },
   hoarder: s => { [1568, 1319, 1568, 1760].forEach((f, i) => s.tone('square', f, f, 0.08, 0.035, i * 0.07)); s.hiss(0.3, 0.05, 'highpass', 5000, 9000); },
   toss: s => s.hiss(0.09, 0.05, 'bandpass', 900, 400, 0, 1.5),
   boom: s => { s.hiss(0.22, 0.12, 'lowpass', 1400, 90); s.tone('sine', 150, 50, 0.18, 0.12); },

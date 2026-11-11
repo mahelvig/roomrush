@@ -22,6 +22,8 @@ const DAILY_QUESTS = [
   { id: 'hero', event: 'room', n: 10, hero: true, text: (n, q) => `Clear ${n} rooms with ${HERO_BY_ID[q.hero].name}` },
   { id: 'gold', event: 'gold', n: 0, text: n => `Collect ${fmt(n)} gold` },
   { id: 'depths', event: 'depth', n: 2, when: () => depthsUnlocked(), text: n => `Clear ${n} depths in The Depths` },
+  { id: 'adv', event: 'advwin', n: 3, text: n => `Win ${n} Adventure levels` },
+  { id: 'advnew', event: 'advnew', n: 1, text: () => 'Win an Adventure level you have not won before' },
 ];
 const WEEKLY_QUESTS = [
   { id: 'rooms', event: 'room', n: 100, text: n => `Clear ${n} rooms` },
@@ -32,6 +34,8 @@ const WEEKLY_QUESTS = [
   { id: 'ability', event: 'ability', n: 80, text: n => `Use your ability ${n} times` },
   { id: 'hardwin', event: 'win', n: 1, minTier: 1, when: () => Object.values(save.tiers).some(t => t >= 0), text: () => 'Clear a world on Hard or higher' },
   { id: 'depths', event: 'depth', n: 10, when: () => depthsUnlocked(), text: n => `Clear ${n} depths in The Depths` },
+  { id: 'adv', event: 'advwin', n: 15, text: n => `Win ${n} Adventure levels` },
+  { id: 'advstars', event: 'advstar', n: 25, text: n => `Earn ${n} stars in Adventure` },
 ];
 
 const ACHIEVEMENTS = [
@@ -46,6 +50,7 @@ const ACHIEVEMENTS = [
   { id: 'heroes', name: 'Hero of All Trades', goals: [1, 2, 3], stat: () => save.stats.heroWins.length, text: n => `Clear a world with ${n} different hero${n === 1 ? '' : 'es'}` },
   { id: 'rich', name: 'Treasure Hoarder', goals: [10000, 100000, 1000000], stat: () => save.stats.goldTotal, text: n => `Collect ${fmt(n)} gold in total` },
   { id: 'ability', name: 'Ability Adept', goals: [50, 500, 2000], stat: () => save.stats.abilityUses, text: n => `Use abilities ${fmt(n)} times` },
+  { id: 'adventurer', name: 'Adventurer', goals: [15, 60, 150], stat: () => advSave().best, text: n => `Win Adventure level ${n}` },
   { id: 'relics', name: 'Relic Hunter', goals: [2, 5, 10], stat: () => Object.keys(save.relics).length, text: n => `Find ${n} different relics` },
 ];
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a.id, a]));
@@ -167,7 +172,8 @@ function rewardsWaiting() {
 // ---------- counting ----------
 
 // Everything that counts towards quests and achievements comes through here.
-// type: kill, elite, boss, room, nohit, gold, ability, epic, win, depth
+// type: kill, elite, boss, room, nohit, gold, ability, epic, win, depth,
+// advwin (an Adventure level won), advnew (one won for the first time), advstar (stars from a win)
 function track(type, amount = 1) {
   const st = save.stats;
   const add = { kill: 'kills', elite: 'elites', room: 'rooms', nohit: 'roomsNoHit', gold: 'goldTotal', ability: 'abilityUses' }[type];

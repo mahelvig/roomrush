@@ -289,6 +289,9 @@ function advWin() {
   run.gold += bonus;
   if (first && L.goal === 'boss') run.gems += 3 + Math.min(7, Math.floor(L.ep / 2));
   if (L.goal === 'boss') track('win');
+  track('advwin');
+  track('advstar', stars);
+  if (first) track('advnew');
   const sum = endRun(true);
   Object.assign(sum, { adv: L, stars, before, first, bonus, streak: a.streak, chest: advChestReady(L.ep) });
   Sound.stopMusic();
